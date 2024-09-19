@@ -31,26 +31,30 @@ class ChatGPTAssistant:
             )
            
             self.logger.info(f"Creating run with model {self.model}")
-            run = self.client.beta.threads.runs.create(
+            run = self.client.beta.threads.runs.create_and_poll(
                 thread_id=self.thread.id,
                 assistant_id=self.assistant_id,
                 instructions=f"You are using the {self.model} model. Respond within {self.max_tokens} tokens."
             )
            
-            self.logger.info("Waiting for run to complete")
-            while run.status != "completed":
-                run = self.client.beta.threads.runs.retrieve(thread_id=self.thread.id, run_id=run.id)
+            if run.status == "requires_action":
+                self.logger.info("Run requires action (tool calls)")
+                # Handle tool calls here if needed
+                pass
            
-            self.logger.info("Retrieving assistant message")
-            messages = self.client.beta.threads.messages.list(thread_id=self.thread.id)
-            assistant_message = next((msg for msg in messages.data if msg.role == "assistant"), None)
-           
-            if assistant_message and assistant_message.content:
-                response = assistant_message.content[0].text.value
-                self.logger.info(f"Got response: {response[:50]}...")
-                return response
+            if run.status == "completed":
+                self.logger.info("Retrieving assistant message")
+                messages = self.client.beta.threads.messages.list(thread_id=self.thread.id)
+                assistant_message = next((msg for msg in messages.data if msg.role == "assistant"), None)
+               
+                if assistant_message and assistant_message.content:
+                    response = assistant_message.content[0].text.value
+                    self.logger.info(f"Got response: {response[:50]}...")
+                    return response
+                else:
+                    raise ValueError("No assistant response found")
             else:
-                raise ValueError("No assistant response found")
+                raise ValueError(f"Unexpected run status: {run.status}")
        
         except Exception as e:
             error_message = f"Error while getting response from ChatGPT assistant: {str(e)}"
@@ -66,12 +70,3 @@ class ChatGPTAssistant:
             self.logger.info(f"Max tokens set to {max_tokens}")
         else:
             self.logger.warning(f"Invalid max_tokens value: {max_tokens}")
-
-    def set_model(self, model: str):
-        if model in self.available_models:
-            self.model = model
-            self.logger.info(f"Model set to {model}")
-        else:
-            error_message = f"Invalid model. Available models are: {', '.join(self.available_models)}"
-            self.logger.error(error_message)
-            raise ValueError(error_message)
