@@ -4,7 +4,7 @@ from openai import OpenAI
 class ChatGPTAssistant:
     def __init__(self):
         self.api_key = os.getenv('OPENAI_API_KEY')
-        self.client = OpenAI(api_key=self.api_key)
+        self.client = OpenAI(api_key=self.api_key, default_headers={"OpenAI-Beta": "assistants=v2"})
         self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
         if not self.assistant_id:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
@@ -30,7 +30,6 @@ class ChatGPTAssistant:
             run = self.client.beta.threads.runs.create(
                 thread_id=thread.id,
                 assistant_id=self.assistant_id,
-                model=self.model,
                 instructions=f"You are using the {self.model} model. Respond within {self.max_tokens} tokens."
             )
 
@@ -40,11 +39,16 @@ class ChatGPTAssistant:
 
             # Get the assistant's response
             messages = self.client.beta.threads.messages.list(thread_id=thread.id)
-            assistant_message = next(msg for msg in messages if msg.role == "assistant")
-            return assistant_message.content[0].text.value
+            assistant_message = next((msg for msg in messages if msg.role == "assistant"), None)
+            
+            if assistant_message and assistant_message.content:
+                return assistant_message.content[0].text.value
+            else:
+                raise ValueError("No assistant response found")
 
         except Exception as e:
-            raise Exception(f"Error while getting response from ChatGPT assistant: {e}")
+            error_message = f"Error while getting response from ChatGPT assistant: {str(e)}"
+            raise Exception(error_message)
 
     def update_settings(self, model: str = None, max_tokens: int = None, temperature: float = None):
         """
