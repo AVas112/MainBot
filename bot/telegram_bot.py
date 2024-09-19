@@ -34,7 +34,7 @@ class TelegramBot:
             "Here are the available commands:\n"
             "/start - Start the bot\n"
             "/help - Show this help message\n"
-            "/change_model - Change the ChatGPT model\n"
+            "/change_model - Change the ChatGPT model (available models: gpt-4o-mini, gpt-4o)\n"
             "/set_max_tokens <number> - Set the maximum number of tokens for responses\n\n"
             "You can also send me any message, and I'll respond using ChatGPT!"
         )

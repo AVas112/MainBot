@@ -30,6 +30,7 @@ class ChatGPTAssistant:
             run = self.client.beta.threads.runs.create(
                 thread_id=thread.id,
                 assistant_id=self.assistant_id,
+                model=self.model,
                 instructions=f"You are using the {self.model} model. Respond within {self.max_tokens} tokens."
             )
 
