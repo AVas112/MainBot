@@ -1,0 +1,91 @@
+@analiticfindchia - Добро пожаловать в сообщество.
+
+Я уже все перерыл, но документация содержит только код, который создает нового ассистента, но как мне подключиться к существующему?
+
+Для получения подробного руководства по OpenAI нажмите здесь. 89
+
+ШАГ 1 :
+
+Получить идентификатор помощника, созданный с помощью.
+
+assistant = self.client.beta.assistants.create(
+                    name=name,
+                    instructions=instructions,
+                    model="gpt-35-turbo",
+                    temperature= temperature,  
+                    top_p= top_p,  
+                    tools=tools
+                )
+print(assistant.id) #Prints the assistant id created.
+
+ШАГ 2:
+Создайте новую тему
+
+thread = client.beta.threads.create()
+ШАГ 3:
+Добавляйте сообщения в ветку, используя это.
+
+message = client.beta.threads.messages.create(
+            thread_id= thread.id, role="user", content="hi!"
+        ) #change content to the message you receive from the api
+ШАГ 4:
+Это сообщение в потоке необходимо передать в LLM, чтобы оно сгенерировало выходные данные. Вы можете использовать потоковую передачу для эффекта пишущей машинки или без потоковой передачи. Вот пример кода для without streaming.
+
+Примечание: Обрабатывайте разные состояния запуска, я только что сделал два для демонстрации. вы можете найти описание состояния запуска здесь 11
+
+run = self.client.beta.threads.runs.create_and_poll(
+            thread_id=self.thread_id, assistant_id=self.assistant_id
+        )
+tool_outputs = []
+
+
+# If the run requires action, process the tools
+        if run.status == "requires_action":
+            try:
+                # Iterate through the tools and execute them
+                for tool in run.required_action.submit_tool_outputs.tool_calls:
+                    args = json.loads(
+                        run.required_action.submit_tool_outputs.tool_calls[0].function.arguments
+                    )
+                    # If the tool has a name, execute it
+                    if tool.function.name:
+                        print("Invoking tool:", tool.function.name)
+                        function_name = tool.function.name
+                        """
+                         Call your tools here  and save op
+                        """
+                        # Save the tool output
+                        tool_outputs.append(
+                            {
+                                "tool_call_id": tool.id,
+                                "output": json.dumps(op),
+                            }
+                        )                
+
+# If there are tool outputs, submit them
+                if tool_outputs:
+                    try:
+                        # Submit the tool outputs
+                        run = self.client.beta.threads.runs.submit_tool_outputs_and_poll(
+                            thread_id=self.thread_id,
+                            run_id=run.id,
+                            tool_outputs=tool_outputs,
+                        )
+
+                    except Exception as e:
+                        print("Failed to submit tool outputs:", e)
+                else:
+                    print("No tool outputs to submit.")
+
+        # If the run is completed, return the messages
+        if run.status == "completed":
+            # Get the messages from the thread
+            messages = self.client.beta.threads.messages.list(
+                thread_id=self.thread_id
+            )
+            return [messages.data[0].content[0].text.value]
+ШАГ 5:
+
+Передайте это сообщение обратно в качестве ответа от api в качестве сообщения assistant.
+
+Приветствую :смайлик:!

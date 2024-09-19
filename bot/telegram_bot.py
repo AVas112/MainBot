@@ -64,7 +64,7 @@ class TelegramBot:
 
         if context.user_data.get('awaiting_model_change', False):
             if user_message in self.chatgpt_assistant.get_available_models():
-                self.chatgpt_assistant.update_settings(model=user_message)
+                self.chatgpt_assistant.set_model(user_message)
                 await context.bot.send_message(chat_id=chat_id, text=f"Model changed to {user_message}")
             else:
                 await context.bot.send_message(chat_id=chat_id, text="Invalid model name. Please try again.")
