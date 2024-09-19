@@ -8,6 +8,7 @@ class ChatGPTAssistant:
         self.model = "gpt-4o-mini"
         self.max_tokens = 150
         self.temperature = 0.7
+        self.available_models = ["gpt-4o-mini", "gpt-4o"]
 
     def get_response(self, user_message: str) -> str:
         """
@@ -35,9 +36,17 @@ class ChatGPTAssistant:
         :param max_tokens: The maximum number of tokens to generate
         :param temperature: The sampling temperature to use
         """
-        if model:
+        if model and model in self.available_models:
             self.model = model
         if max_tokens is not None:
             self.max_tokens = max_tokens
         if temperature is not None:
             self.temperature = temperature
+
+    def get_available_models(self) -> list:
+        """
+        Get the list of available models.
+        
+        :return: List of available model names
+        """
+        return self.available_models

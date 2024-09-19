@@ -15,6 +15,7 @@ class TelegramBot:
         # Command handlers
         self.application.add_handler(CommandHandler("start", self.start))
         self.application.add_handler(CommandHandler("help", self.help))
+        self.application.add_handler(CommandHandler("change_model", self.change_model))
 
         # Message handler
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
@@ -31,15 +32,33 @@ class TelegramBot:
         help_text = (
             "Here are the available commands:\n"
             "/start - Start the bot\n"
-            "/help - Show this help message\n\n"
+            "/help - Show this help message\n"
+            "/change_model - Change the ChatGPT model\n\n"
             "You can also send me any message, and I'll respond using ChatGPT!"
         )
         await update.message.reply_text(help_text)
+
+    async def change_model(self, update: Update, context):
+        """Change the ChatGPT model."""
+        available_models = self.chatgpt_assistant.get_available_models()
+        model_list = "\n".join(available_models)
+        message = f"Available models:\n{model_list}\n\nTo change the model, reply with the model name."
+        await update.message.reply_text(message)
+        context.user_data['awaiting_model_change'] = True
 
     async def handle_message(self, update: Update, context):
         """Handle incoming messages and respond using ChatGPT."""
         user_message = update.message.text
         chat_id = update.effective_chat.id
+
+        if context.user_data.get('awaiting_model_change', False):
+            if user_message in self.chatgpt_assistant.get_available_models():
+                self.chatgpt_assistant.update_settings(model=user_message)
+                await context.bot.send_message(chat_id=chat_id, text=f"Model changed to {user_message}")
+            else:
+                await context.bot.send_message(chat_id=chat_id, text="Invalid model name. Please try again.")
+            context.user_data['awaiting_model_change'] = False
+            return
 
         try:
             response = self.chatgpt_assistant.get_response(user_message)
