@@ -9,9 +9,11 @@ class TelegramBot:
         self.token = os.getenv('TELEGRAM_BOT_TOKEN')
         self.chatgpt_assistant = ChatGPTAssistant()
         self.application = Application.builder().token(self.token).build()
+        self.logger = logging.getLogger(__name__)
 
     def run(self):
         """Set up and run the bot."""
+        self.logger.info("Setting up Telegram bot...")
         # Command handlers
         self.application.add_handler(CommandHandler("start", self.start))
         self.application.add_handler(CommandHandler("help", self.help))
@@ -22,14 +24,17 @@ class TelegramBot:
         self.application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
 
         # Start the bot
+        self.logger.info("Starting Telegram bot...")
         self.application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     async def start(self, update: Update, context):
         """Send a message when the command /start is issued."""
+        self.logger.info(f"User {update.effective_user.id} started the bot")
         await update.message.reply_text('Hello! I am a ChatGPT-powered Telegram bot. How can I assist you today?')
 
     async def help(self, update: Update, context):
         """Send a message when the command /help is issued."""
+        self.logger.info(f"User {update.effective_user.id} requested help")
         help_text = (
             "Here are the available commands:\n"
             "/start - Start the bot\n"
@@ -42,6 +47,7 @@ class TelegramBot:
 
     async def change_model(self, update: Update, context):
         """Change the ChatGPT model."""
+        self.logger.info(f"User {update.effective_user.id} requested to change the model")
         available_models = self.chatgpt_assistant.get_available_models()
         model_list = "\n".join(available_models)
         message = f"Available models:\n{model_list}\n\nTo change the model, reply with the model name."
@@ -50,9 +56,11 @@ class TelegramBot:
 
     async def set_max_tokens(self, update: Update, context):
         """Set the maximum number of tokens for responses."""
+        self.logger.info(f"User {update.effective_user.id} requested to set max tokens")
         if context.args and context.args[0].isdigit():
             max_tokens = int(context.args[0])
             self.chatgpt_assistant.set_max_tokens(max_tokens)
+            self.logger.info(f"Max tokens set to {max_tokens}")
             await update.message.reply_text(f"Maximum tokens set to {max_tokens}")
         else:
             await update.message.reply_text("Please provide a valid number of tokens. Usage: /set_max_tokens <number>")
@@ -61,21 +69,28 @@ class TelegramBot:
         """Handle incoming messages and respond using ChatGPT."""
         user_message = update.message.text
         chat_id = update.effective_chat.id
+        user_id = update.effective_user.id
+
+        self.logger.info(f"Received message from user {user_id}: {user_message[:50]}...")
 
         if context.user_data.get('awaiting_model_change', False):
             if user_message in self.chatgpt_assistant.get_available_models():
                 self.chatgpt_assistant.set_model(user_message)
+                self.logger.info(f"Model changed to {user_message} for user {user_id}")
                 await context.bot.send_message(chat_id=chat_id, text=f"Model changed to {user_message}")
             else:
+                self.logger.warning(f"Invalid model name '{user_message}' provided by user {user_id}")
                 await context.bot.send_message(chat_id=chat_id, text="Invalid model name. Please try again.")
             context.user_data['awaiting_model_change'] = False
             return
 
         try:
+            self.logger.info(f"Sending message to ChatGPT for user {user_id}")
             response = await self.chatgpt_assistant.get_response(user_message)
+            self.logger.info(f"Received response from ChatGPT for user {user_id}")
             await context.bot.send_message(chat_id=chat_id, text=response)
         except Exception as e:
-            logging.error(f"Error while processing message: {e}")
+            self.logger.error(f"Error while processing message for user {user_id}: {e}")
             await context.bot.send_message(
                 chat_id=chat_id,
                 text="I'm sorry, but I encountered an error while processing your message. Please try again later."
