@@ -6,6 +6,8 @@ class ChatGPTAssistant:
         self.api_key = os.getenv('OPENAI_API_KEY')
         self.client = OpenAI(api_key=self.api_key)
         self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
+        if not self.assistant_id:
+            raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
         self.model = "gpt-4o-mini"
         self.max_tokens = 150
         self.temperature = 0.7
