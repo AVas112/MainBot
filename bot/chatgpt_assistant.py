@@ -10,7 +10,7 @@ class ChatGPTAssistant:
         if not self.assistant_id:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
         self.model = "gpt-4o-mini"
-        self.max_tokens = 800
+        self.max_tokens = 400
         self.temperature = 0.7
         self.available_models = ["gpt-4o-mini", "gpt-4o"]
         self.thread = None
@@ -33,8 +33,7 @@ class ChatGPTAssistant:
             self.logger.info(f"Creating run with model {self.model}")
             run = self.client.beta.threads.runs.create_and_poll(
                 thread_id=self.thread.id,
-                assistant_id=self.assistant_id,
-                instructions=f"You are using the {self.model} model. Respond within {self.max_tokens} tokens."
+                assistant_id=self.assistant_id
             )
            
             if run.status == "requires_action":
