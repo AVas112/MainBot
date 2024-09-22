@@ -9,8 +9,6 @@ class ChatGPTAssistant:
         self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
         if not self.assistant_id:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
-        self.model = "gpt-4o-mini"
-        self.max_tokens = 400
         self.temperature = 0.7
         self.available_models = ["gpt-4o-mini", "gpt-4o"]
         self.thread = None
@@ -30,7 +28,7 @@ class ChatGPTAssistant:
                 content=user_message
             )
            
-            self.logger.info(f"Creating run with model {self.model}")
+            self.logger.info(f"Creating run")
             run = self.client.beta.threads.runs.create_and_poll(
                 thread_id=self.thread.id,
                 assistant_id=self.assistant_id
@@ -60,12 +58,4 @@ class ChatGPTAssistant:
             self.logger.error(error_message)
             raise Exception(error_message)
 
-    def get_available_models(self) -> list:
-        return self.available_models
 
-    def set_max_tokens(self, max_tokens: int):
-        if max_tokens > 0:
-            self.max_tokens = max_tokens
-            self.logger.info(f"Max tokens set to {max_tokens}")
-        else:
-            self.logger.warning(f"Invalid max_tokens value: {max_tokens}")
