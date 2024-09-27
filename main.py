@@ -19,4 +19,5 @@ if __name__ == '__main__':
 
     # Create and run the Telegram bot
     bot = TelegramBot()
+    logger.info(f"Loaded threads: {bot.threads}")  # Check loaded threads
     bot.run()

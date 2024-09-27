@@ -1,6 +1,7 @@
 import os
 import logging
 import smtplib
+import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from telegram import Update
@@ -14,6 +15,7 @@ class TelegramBot:
         self.application = Application.builder().token(self.token).build()
         self.logger = logging.getLogger(__name__)
         self.dialogs = {}
+        self.threads = self.load_threads()  # Load threads from file
 
     def run(self):
         self.logger.info("Setting up Telegram bot...")
@@ -38,7 +40,7 @@ class TelegramBot:
         await update.message.reply_text(help_text)
 
     async def handle_message(self, update: Update, context):
-        user_id = update.effective_user.id
+        user_id = str(update.effective_user.id)  # ensure user_id is a string
         chat_id = update.effective_chat.id
         user_message = update.message.text
 
@@ -48,26 +50,32 @@ class TelegramBot:
         if user_id not in self.dialogs:
             self.dialogs[user_id] = []
 
+        # Check if thread exists for user, if not create one
+        if user_id not in self.threads:
+            self.logger.info(f"Creating new thread for user {user_id}")
+            thread_id = self.chatgpt_assistant.create_thread(user_id)
+            self.logger.info(f"Created thread ID {thread_id} for user {user_id}")
+            self.threads[user_id] = thread_id
+            self.save_threads()
+        else:
+            thread_id = self.threads[user_id]
+            self.logger.info(f"Using existing thread ID {thread_id} for user {user_id}")
+
         # Append user message to the dialog
         self.dialogs[user_id].append(f"User: {user_message}")
 
         try:
             self.logger.info(f"Sending message to ChatGPT for user {user_id}")
-            response = await self.chatgpt_assistant.get_response(user_message)
+            response = await self.chatgpt_assistant.get_response(user_message, thread_id)
             self.logger.info(f"Received response from ChatGPT for user {user_id}")
 
             # Append ChatGPT response to the dialog
             self.dialogs[user_id].append(f"ChatGPT: {response}")
 
-            # Check if the response contains the target phrase
+            # Check for specific message
             if "Спасибо за обращение к нам!" in response:
-                response_lines = response.split('\n')
-                target_index = next((i for i, line in enumerate(response_lines)
-                                     if "Спасибо за обращение к нам!" in line), None)
-                if target_index is not None:
-                    following_lines = response_lines[target_index + 1: target_index + 4]
-                    self.save_response(following_lines, user_id)
-                    self.send_email(user_id)
+                self.save_response(response.splitlines(), user_id)
+                self.send_email(user_id)
 
             await context.bot.send_message(chat_id=chat_id, text=response)
         except Exception as e:
@@ -77,8 +85,28 @@ class TelegramBot:
                 text="I'm sorry, but I encountered an error while processing your message. Please try again later."
             )
 
+    def load_threads(self):
+        if os.path.exists('threads.json'):
+            with open('threads.json', 'r') as file:
+                try:
+                    threads = json.load(file)
+                    self.logger.info(f"Loaded threads: {threads}")
+                    # Ensure all keys in threads are strings
+                    return {str(key): value for key, value in threads.items()}
+                except json.JSONDecodeError:
+                    self.logger.error("Failed to decode threads.json")
+                    return {}
+        return {}
+
+    def save_threads(self):
+        with open('threads.json', 'w') as file:
+            json.dump(self.threads, file, indent=4)
+        self.logger.info(f"Saved threads: {self.threads}")
+
     def save_response(self, lines, user_id):
         # Save the following lines when "Спасибо за обращение к нам!" is found
+        if not os.path.exists('responses'):
+            os.makedirs('responses')
         with open(f"responses/{user_id}_response.txt", "w") as file:
             for line in lines:
                 file.write(line + '\n')
@@ -113,5 +141,3 @@ class TelegramBot:
             self.logger.info(f"Email sent successfully for user {user_id}")
         except Exception as e:
             self.logger.error(f"Failed to send email for user {user_id}: {e}")
-
-
