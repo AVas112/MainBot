@@ -14,36 +14,38 @@ class ChatGPTAssistant:
         self.thread = None
         self.logger = logging.getLogger(__name__)
 
-    async def get_response(self, user_message: str) -> str:
+    def create_thread(self, user_id: str):
+        self.logger.info(f"Creating new thread for user {user_id}")
+        thread = self.client.beta.threads.create()
+        return thread.id
+
+    async def get_response(self, user_message: str, thread_id: str) -> str:
         try:
             self.logger.info(f"Getting response for message: {user_message[:50]}...")
-            if not self.thread:
-                self.logger.info("Creating new thread")
-                self.thread = self.client.beta.threads.create()
-           
+
             self.logger.info("Adding user message to thread")
             self.client.beta.threads.messages.create(
-                thread_id=self.thread.id,
+                thread_id=thread_id,
                 role="user",
                 content=user_message
             )
-           
+
             self.logger.info(f"Creating run")
             run = self.client.beta.threads.runs.create_and_poll(
-                thread_id=self.thread.id,
+                thread_id=thread_id,
                 assistant_id=self.assistant_id
             )
-           
+
             if run.status == "requires_action":
                 self.logger.info("Run requires action (tool calls)")
                 # Handle tool calls here if needed
                 pass
-           
+
             if run.status == "completed":
                 self.logger.info("Retrieving assistant message")
-                messages = self.client.beta.threads.messages.list(thread_id=self.thread.id)
+                messages = self.client.beta.threads.messages.list(thread_id=thread_id)
                 assistant_message = next((msg for msg in messages.data if msg.role == "assistant"), None)
-               
+
                 if assistant_message and assistant_message.content:
                     response = assistant_message.content[0].text.value
                     self.logger.info(f"Got response: {response[:50]}...")
@@ -52,10 +54,8 @@ class ChatGPTAssistant:
                     raise ValueError("No assistant response found")
             else:
                 raise ValueError(f"Unexpected run status: {run.status}")
-       
+
         except Exception as e:
             error_message = f"Error while getting response from ChatGPT assistant: {str(e)}"
             self.logger.error(error_message)
             raise Exception(error_message)
-
-
