@@ -35,7 +35,6 @@ class TelegramBot:
             "Here are the available commands:\n"
             "/start - Start the bot\n"
             "/help - Show this help message\n"
-            "You can also send me any message, and I'll respond using ChatGPT!"
         )
         await update.message.reply_text(help_text)
 

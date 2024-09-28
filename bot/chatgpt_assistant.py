@@ -9,9 +9,6 @@ class ChatGPTAssistant:
         self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
         if not self.assistant_id:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
-        self.temperature = 0.7
-        self.available_models = ["gpt-4o-mini", "gpt-4o"]
-        self.thread = None
         self.logger = logging.getLogger(__name__)
 
     def create_thread(self, user_id: str):
