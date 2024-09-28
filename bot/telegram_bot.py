@@ -119,22 +119,35 @@ class TelegramBot:
 
     async def save_dialogs(self, filename, dialog, username):
         async with aiofiles.open(os.path.join(self.dialogs_dir, filename), "a") as file:
-            await file.write('Диалог с клиентом:\n')
             await file.write(f"Клиент: {username}\n")  # Записываем логин клиента
+            await file.write('Диалог с клиентом:\n')
             for line in dialog:
                 await file.write(line + "\n" + "\n")
 
     async def save_response(self, filename, lines, dialog, username):
         async with aiofiles.open(os.path.join(self.responses_dir, filename), "a") as file:
-            # Сначала записывает строки из параметра lines
+            # Начало HTML разметки
+            await file.write('<ht<head><style>')
+            await file.write('''
+                body { font-family: Arial, sans-serif; line-height: 1.6; }
+                   h2 { color: #2c3e50; }
+                   .section { margin-bottom: 20px; }
+                   .section p { margin: 5px 0; }
+                   .ёclient-info { font-weight: bold; }
+               ''')
+            await file.write('</style></head><body>')
+              # Основная часть письма
+            await file.write('<div class="section"><h2>Заказ</h2></div>')
+            await file.write(f'<p class="client-info">Клиент: {username}</p>')
             for line in lines:
-                await file.write(line + '\n')
-            # Добавить пустую строку для разделения
-            await file.write('\nДиалог с клиентом:\n')
-            await file.write(f"Клиент: {username}\n")  # Записываем логин клиента
-            # Затем записывает весь диалог
+                 await file.write(f'<p>{line}</p>')
+            # Информация о клиенте и диалог
+            await file.write('<div class="section"><h2>Диалог с клиентом</h2>')
             for line in dialog:
-                await file.write(line + '\n')
+                await file.write(f'<p>{line}</p>')
+            await file.write('</div>')
+            # Конец HTML разметки
+            await file.write('</body></html>')
 
     def load_threads(self):
         if os.path.exists('threads.json'):
@@ -160,19 +173,23 @@ class TelegramBot:
         smtp_port = 587
         smtp_user = os.getenv('SMTP_USER')
         smtp_password = os.getenv('SMTP_PASSWORD')
-
+         
         # Create the email
-        msg = MIMEMultipart()
+        msg = MIMEMultipart('alternative')
         msg['From'] = smtp_user
         msg['To'] = 'da1212112@gmail.com'
         msg['Subject'] = f"ChatGPT Response for User {user_id}"
-
+         
         # Attach the dialog and saved response
         with open(os.path.join(self.responses_dir, self.responses_filename), "r") as file:
             saved_response = file.read()
-
-        msg.attach(MIMEText(f"Saved response:\n\n{saved_response}", 'plain'))
-
+             
+        part1 = MIMEText(saved_response, 'plain')
+        part2 = MIMEText(saved_response, 'html')
+         
+        msg.attach(part1)
+        msg.attach(part2)
+         
         # Send the email
         try:
             server = smtplib.SMTP(smtp_server, smtp_port)
@@ -183,3 +200,4 @@ class TelegramBot:
             self.logger.info(f"Email sent successfully for user {user_id}")
         except Exception as e:
             self.logger.error(f"Failed to send email for user {user_id}: {e}")
+
