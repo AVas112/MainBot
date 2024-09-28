@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 from openai import OpenAI
 
@@ -46,6 +47,10 @@ class ChatGPTAssistant:
                 if assistant_message and assistant_message.content:
                     response = assistant_message.content[0].text.value
                     self.logger.info(f"Got response: {response[:50]}...")
+
+                    # Удаление любых текстов между символами 【 и 】 включительно
+                    response = re.sub(r"【.*?】", "", response)
+                    
                     return response
                 else:
                     raise ValueError("No assistant response found")

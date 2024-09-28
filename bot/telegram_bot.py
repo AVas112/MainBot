@@ -2,6 +2,8 @@ import os
 import logging
 import smtplib
 import json
+import aiofiles
+import asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from telegram import Update
@@ -16,6 +18,26 @@ class TelegramBot:
         self.logger = logging.getLogger(__name__)
         self.dialogs = {}
         self.threads = self.load_threads()  # Load threads from file
+        self.file_lock = asyncio.Lock()  # Добавляем блокировку для файловой системы
+
+        # Установка директорий для диалогов и ответов
+        self.dialogs_dir = 'dialogs'
+        self.responses_dir = 'responses'
+
+    def get_unique_filename(self, directory, user_id, username, base_filename):
+        """
+        Генерирует уникальное имя файла в заданном каталоге,
+        добавляя числовой суффикс к основному имени файла, если файл уже существует.
+        """
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        count = 1
+        filename = f"{user_id}_{username}_{base_filename}"
+        while os.path.exists(os.path.join(directory, filename)):
+            filename = f"{user_id}_{username}_{base_filename}_{count}"
+            count += 1
+        return filename
 
     def run(self):
         self.logger.info("Setting up Telegram bot...")
@@ -27,7 +49,7 @@ class TelegramBot:
 
     async def start(self, update: Update, context):
         self.logger.info(f"User {update.effective_user.id} started the bot")
-        await update.message.reply_text('Привет. Я консультат компании КлинингУМамы. Чем я могу вам помочь?')
+        await update.message.reply_text('Привет. Я консультант компании КлинингУМамы. Чем я могу вам помочь?')
 
     async def help(self, update: Update, context):
         self.logger.info(f"User {update.effective_user.id} requested help")
@@ -39,50 +61,80 @@ class TelegramBot:
         await update.message.reply_text(help_text)
 
     async def handle_message(self, update: Update, context):
-        user_id = str(update.effective_user.id)  # ensure user_id is a string
+        user = update.effective_user  # Извлекаем информацию о пользователе
+        username = user.username if user.username else 'Unknown'  # Извлекаем логин или устанавливаем значение 'Unknown'
+        user_id = str(user.id)  # Убедитесь, что user_id - строка
         chat_id = update.effective_chat.id
         user_message = update.message.text
 
-        self.logger.info(f"Received message from user {user_id}: {user_message[:50]}...")
+        self.logger.info(f"Получено сообщение от пользователя {user_id} ({username}): {user_message[:50]}...")
 
-        # Initialize dialog if not present
+        # Инициализация диалога, если он отсутствует
         if user_id not in self.dialogs:
             self.dialogs[user_id] = []
 
-        # Check if thread exists for user, if not create one
+        # Проверка наличия потока для пользователя, создание нового потока при отсутствии
         if user_id not in self.threads:
-            self.logger.info(f"Creating new thread for user {user_id}")
+            self.logger.info(f"Создание нового потока для пользователя {user_id}")
             thread_id = self.chatgpt_assistant.create_thread(user_id)
-            self.logger.info(f"Created thread ID {thread_id} for user {user_id}")
+            self.logger.info(f"Создан ID потока {thread_id} для пользователя {user_id}")
             self.threads[user_id] = thread_id
             self.save_threads()
         else:
             thread_id = self.threads[user_id]
-            self.logger.info(f"Using existing thread ID {thread_id} for user {user_id}")
+            self.logger.info(f"Использование существующего ID потока {thread_id} для пользователя {user_id}")
 
-        # Append user message to the dialog
+        # Устанавливаем уникальные имена файлов для текущей пользовательской сессии
+        if not hasattr(self, 'dialogs_filename'):
+            self.dialogs_filename = self.get_unique_filename(self.dialogs_dir, user_id, username, "dialogs.txt")
+        if not hasattr(self, 'responses_filename'):
+            self.responses_filename = self.get_unique_filename(self.responses_dir, user_id, username, "response.txt")
+
+        # Добавление сообщения пользователя в диалог
         self.dialogs[user_id].append(f"User: {user_message}")
 
         try:
-            self.logger.info(f"Sending message to ChatGPT for user {user_id}")
+            self.logger.info(f"Отправка сообщения ChatGPT для пользователя {user_id}")
             response = await self.chatgpt_assistant.get_response(user_message, thread_id)
-            self.logger.info(f"Received response from ChatGPT for user {user_id}")
+            self.logger.info(f"Получен ответ от ChatGPT для пользователя {user_id}")
 
-            # Append ChatGPT response to the dialog
+            # Добавление ответа ChatGPT в диалог
             self.dialogs[user_id].append(f"ChatGPT: {response}")
 
-            # Check for specific message
-            if "Спасибо за обращение к нам!" in response:
-                self.save_response(response.splitlines(), user_id)
-                self.send_email(user_id)
+            # Сохранение диалога в файл
+            await self.save_dialogs(self.dialogs_filename, self.dialogs[user_id], username)
+
+            # Проверка на специфическое сообщение
+            if "Спасибо, что обратились в КлинингУМамы!" in response:
+                await self.save_response(self.responses_filename, response.splitlines(), self.dialogs[user_id], username)  # Асинхронный вызов
+                self.send_email(user_id)  # Этот метод остается синхронным
 
             await context.bot.send_message(chat_id=chat_id, text=response)
         except Exception as e:
-            self.logger.error(f"Error while processing message for user {user_id}: {e}")
+            self.logger.error(f"Ошибка при обработке сообщения для пользователя {user_id}: {e}")
             await context.bot.send_message(
                 chat_id=chat_id,
-                text="I'm sorry, but I encountered an error while processing your message. Please try again later."
+                text="Извините, произошла ошибка при обработке вашего сообщения. Попробуйте позже."
             )
+
+    async def save_dialogs(self, filename, dialog, username):
+        async with aiofiles.open(os.path.join(self.dialogs_dir, filename), "a") as file:
+            await file.write('Диалог с клиентом:\n')
+            await file.write(f"Клиент: {username}\n")  # Записываем логин клиента
+            for line in dialog:
+                await file.write(line + "\n" + "\n")
+
+    async def save_response(self, filename, lines, dialog, username):
+        async with aiofiles.open(os.path.join(self.responses_dir, filename), "a") as file:
+            # Сначала записывает строки из параметра lines
+            for line in lines:
+                await file.write(line + '\n')
+            # Добавить пустую строку для разделения
+            await file.write('\nДиалог с клиентом:\n')
+            await file.write(f"Клиент: {username}\n")  # Записываем логин клиента
+            # Затем записывает весь диалог
+            for line in dialog:
+                await file.write(line + '\n')
 
     def load_threads(self):
         if os.path.exists('threads.json'):
@@ -102,14 +154,6 @@ class TelegramBot:
             json.dump(self.threads, file, indent=4)
         self.logger.info(f"Saved threads: {self.threads}")
 
-    def save_response(self, lines, user_id):
-        # Save the following lines when "Спасибо за обращение к нам!" is found
-        if not os.path.exists('responses'):
-            os.makedirs('responses')
-        with open(f"responses/{user_id}_response.txt", "w") as file:
-            for line in lines:
-                file.write(line + '\n')
-
     def send_email(self, user_id):
         # Set up the email server and login details
         smtp_server = 'smtp.mail.ru'
@@ -124,11 +168,10 @@ class TelegramBot:
         msg['Subject'] = f"ChatGPT Response for User {user_id}"
 
         # Attach the dialog and saved response
-        dialog = "\n".join(self.dialogs[user_id])
-        with open(f"responses/{user_id}_response.txt", "r") as file:
+        with open(os.path.join(self.responses_dir, self.responses_filename), "r") as file:
             saved_response = file.read()
 
-        msg.attach(MIMEText(f"Full dialog:\n\n{dialog}\n\nSaved response:\n\n{saved_response}", 'plain'))
+        msg.attach(MIMEText(f"Saved response:\n\n{saved_response}", 'plain'))
 
         # Send the email
         try:
