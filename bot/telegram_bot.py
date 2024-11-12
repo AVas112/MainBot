@@ -8,7 +8,7 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
-from .chatgpt_assistant import ChatGPTAssistant
+from bot.chatgpt_assistant import ChatGPTAssistant
 
 class TelegramBot:
     def __init__(self):
