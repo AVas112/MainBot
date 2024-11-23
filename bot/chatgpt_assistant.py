@@ -1,7 +1,9 @@
 import os
 import re
 import logging
+import json
 from openai import OpenAI
+from bot.contact_handler import ContactHandler
 
 class ChatGPTAssistant:
     def __init__(self):
@@ -11,6 +13,7 @@ class ChatGPTAssistant:
         if not self.assistant_id:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
         self.logger = logging.getLogger(__name__)
+        self.contact_handler = ContactHandler()
 
     def create_thread(self, user_id: str):
         self.logger.info(f"Creating new thread for user {user_id}")
@@ -36,8 +39,31 @@ class ChatGPTAssistant:
 
             if run.status == "requires_action":
                 self.logger.info("Run requires action (tool calls)")
-                # Handle tool calls here if needed
-                pass
+                tool_calls = run.required_action.submit_tool_outputs.tool_calls
+                tool_outputs = []
+                
+                for tool_call in tool_calls:
+                    if tool_call.function.name == "get_client_contact_info":
+                        # Обработка полученной контактной информации
+                        contact_info = json.loads(tool_call.function.arguments)
+                        # Сохраняем информацию в файл
+                        await self.contact_handler.save_contact_info(
+                            username=user_id,  # Используем user_id как username
+                            thread_id=thread_id,
+                            contact_info=contact_info
+                        )
+                        tool_outputs.append({
+                            "tool_call_id": tool_call.id,
+                            "output": json.dumps({"status": "success", "message": "Contact information saved"})
+                        })
+
+                # Отправляем результаты обработки функций обратно
+                if tool_outputs:
+                    run = self.client.beta.threads.runs.submit_tool_outputs(
+                        thread_id=thread_id,
+                        run_id=run.id,
+                        tool_outputs=tool_outputs
+                    )
 
             if run.status == "completed":
                 self.logger.info("Retrieving assistant message")
