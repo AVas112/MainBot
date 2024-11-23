@@ -8,13 +8,12 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
-from bot.chatgpt_assistant import ChatGPTAssistant
 from datetime import datetime
+from bot.chatgpt_assistant import ChatGPTAssistant
 
 class TelegramBot:
     def __init__(self):
         self.token = os.getenv('TELEGRAM_BOT_TOKEN')
-        self.chatgpt_assistant = ChatGPTAssistant()
         self.application = Application.builder().token(self.token).build()
         self.logger = logging.getLogger(__name__)
         self.dialogs = {}
@@ -31,6 +30,9 @@ class TelegramBot:
         # Установка директорий для диалогов и ответов
         self.dialogs_dir = 'dialogs'
         self.responses_dir = 'responses'
+
+        # Создаем ChatGPTAssistant после инициализации всех необходимых атрибутов
+        self.chatgpt_assistant = ChatGPTAssistant(telegram_bot=self)
 
     def get_unique_filename(self, directory, user_id, username, base_filename):
         """
@@ -157,43 +159,6 @@ class TelegramBot:
             # Конец HTML разметки
             await file.write('</body></html>')
 
-    async def send_contact_notification(self, contact_info: dict, username: str):
-        """
-        Асинхронно отправляет уведомление о новом контакте на email
-        """
-        if not all([self.smtp_server, self.smtp_username, self.smtp_password, self.notification_email]):
-            self.logger.error("Email configuration is incomplete")
-            return
-
-        message = MIMEMultipart()
-        message["From"] = self.smtp_username
-        message["To"] = self.notification_email
-        message["Subject"] = f"Новый контакт от пользователя {username}"
-
-        body = f"""
-        Получена новая контактная информация:
-        
-        Имя клиента: {contact_info.get('name')}
-        Телефон: {contact_info.get('phone_number')}
-        Предпочтительное время для звонка: {contact_info.get('preferred_call_time')}
-        
-        Пользователь Telegram: {username}
-        Время получения: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-        """
-
-        message.attach(MIMEText(body, "plain"))
-
-        try:
-            async with asyncio.Lock():
-                server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-                server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
-                server.send_message(message)
-                server.quit()
-                self.logger.info(f"Contact notification email sent for user {username}")
-        except Exception as e:
-            self.logger.error(f"Failed to send contact notification email: {str(e)}")
-
     def load_threads(self):
         if os.path.exists('threads.json'):
             with open('threads.json', 'r') as file:
@@ -212,7 +177,7 @@ class TelegramBot:
             json.dump(self.threads, file, indent=4)
         self.logger.info(f"Saved threads: {self.threads}")
 
-    def send_email(self, user_id):
+    def send_email(self, user_id, contact_info=None):
         # Set up the email server and login details
         smtp_server = 'smtp.mail.ru'
         smtp_port = 587
@@ -223,14 +188,28 @@ class TelegramBot:
         msg = MIMEMultipart('alternative')
         msg['From'] = smtp_user
         msg['To'] = 'da1212112@gmail.com'
-        msg['Subject'] = f"ChatGPT Response for User {user_id}"
-         
-        # Attach the dialog and saved response
-        with open(os.path.join(self.responses_dir, self.responses_filename), "r") as file:
-            saved_response = file.read()
+        
+        if contact_info:
+            msg['Subject'] = f"Новый контакт от пользователя {user_id}"
+            body = f"""
+            Получена новая контактная информация:
+            
+            Имя клиента: {contact_info.get('name')}
+            Телефон: {contact_info.get('phone_number')}
+            Предпочтительное время для звонка: {contact_info.get('preferred_call_time')}
+            
+            Пользователь Telegram: {user_id}
+            Время получения: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            """
+        else:
+            msg['Subject'] = f"ChatGPT Response for User {user_id}"
+            # Attach the dialog and saved response
+            with open(os.path.join(self.responses_dir, self.responses_filename), "r") as file:
+                saved_response = file.read()
+                body = saved_response
              
-        part1 = MIMEText(saved_response, 'plain')
-        part2 = MIMEText(saved_response, 'html')
+        part1 = MIMEText(body, 'plain')
+        part2 = MIMEText(body, 'html')
          
         msg.attach(part1)
         msg.attach(part2)
