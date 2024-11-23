@@ -7,7 +7,7 @@ from bot.contact_handler import ContactHandler
 import asyncio
 
 class ChatGPTAssistant:
-    def __init__(self):
+    def __init__(self, telegram_bot=None):
         self.api_key = os.getenv('OPENAI_API_KEY')
         self.client = OpenAI(api_key=self.api_key, default_headers={"OpenAI-Beta": "assistants=v2"})
         self.assistant_id = os.getenv('OPENAI_ASSISTANT_ID')
@@ -15,6 +15,7 @@ class ChatGPTAssistant:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
         self.logger = logging.getLogger(__name__)
         self.contact_handler = ContactHandler()
+        self.telegram_bot = telegram_bot
 
     def create_thread(self, user_id: str):
         self.logger.info(f"Creating new thread for user {user_id}")
@@ -57,9 +58,11 @@ class ChatGPTAssistant:
                                 thread_id=thread_id,
                                 contact_info=contact_info
                             )
+                            if self.telegram_bot:
+                                self.telegram_bot.send_email(user_id, contact_info)
                             tool_outputs.append({
                                 "tool_call_id": tool_call.id,
-                                "output": json.dumps({"status": "success", "message": "Contact information saved"})
+                                "output": json.dumps({"status": "success", "message": "Contact information saved and notification sent"})
                             })
 
                     run = self.client.beta.threads.runs.submit_tool_outputs(
