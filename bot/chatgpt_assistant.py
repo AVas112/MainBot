@@ -4,6 +4,7 @@ import logging
 import json
 from openai import OpenAI
 from bot.contact_handler import ContactHandler
+import asyncio
 
 class ChatGPTAssistant:
     def __init__(self):
@@ -20,7 +21,7 @@ class ChatGPTAssistant:
         thread = self.client.beta.threads.create()
         return thread.id
 
-    async def get_response(self, user_message: str, thread_id: str) -> str:
+    async def get_response(self, user_message: str, thread_id: str, user_id: str) -> str:
         try:
             self.logger.info(f"Getting response for message: {user_message[:50]}...")
 
@@ -32,56 +33,59 @@ class ChatGPTAssistant:
             )
 
             self.logger.info(f"Creating run")
-            run = self.client.beta.threads.runs.create_and_poll(
+            run = self.client.beta.threads.runs.create(
                 thread_id=thread_id,
                 assistant_id=self.assistant_id
             )
 
-            if run.status == "requires_action":
-                self.logger.info("Run requires action (tool calls)")
-                tool_calls = run.required_action.submit_tool_outputs.tool_calls
-                tool_outputs = []
-                
-                for tool_call in tool_calls:
-                    if tool_call.function.name == "get_client_contact_info":
-                        # Обработка полученной контактной информации
-                        contact_info = json.loads(tool_call.function.arguments)
-                        # Сохраняем информацию в файл
-                        await self.contact_handler.save_contact_info(
-                            username=user_id,  # Используем user_id как username
-                            thread_id=thread_id,
-                            contact_info=contact_info
-                        )
-                        tool_outputs.append({
-                            "tool_call_id": tool_call.id,
-                            "output": json.dumps({"status": "success", "message": "Contact information saved"})
-                        })
+            while True:
+                run = self.client.beta.threads.runs.retrieve(
+                    thread_id=thread_id,
+                    run_id=run.id
+                )
 
-                # Отправляем результаты обработки функций обратно
-                if tool_outputs:
+                if run.status == "requires_action":
+                    self.logger.info("Run requires action (tool calls)")
+                    tool_calls = run.required_action.submit_tool_outputs.tool_calls
+                    tool_outputs = []
+                    
+                    for tool_call in tool_calls:
+                        if tool_call.function.name == "get_client_contact_info":
+                            contact_info = json.loads(tool_call.function.arguments)
+                            await self.contact_handler.save_contact_info(
+                                username=user_id,
+                                thread_id=thread_id,
+                                contact_info=contact_info
+                            )
+                            tool_outputs.append({
+                                "tool_call_id": tool_call.id,
+                                "output": json.dumps({"status": "success", "message": "Contact information saved"})
+                            })
+
                     run = self.client.beta.threads.runs.submit_tool_outputs(
                         thread_id=thread_id,
                         run_id=run.id,
                         tool_outputs=tool_outputs
                     )
+                    continue
 
-            if run.status == "completed":
-                self.logger.info("Retrieving assistant message")
-                messages = self.client.beta.threads.messages.list(thread_id=thread_id)
-                assistant_message = next((msg for msg in messages.data if msg.role == "assistant"), None)
+                if run.status == "completed":
+                    self.logger.info("Run completed, retrieving assistant message")
+                    messages = self.client.beta.threads.messages.list(thread_id=thread_id)
+                    assistant_message = next((msg for msg in messages.data if msg.role == "assistant"), None)
 
-                if assistant_message and assistant_message.content:
-                    response = assistant_message.content[0].text.value
-                    self.logger.info(f"Got response: {response[:50]}...")
+                    if assistant_message and assistant_message.content:
+                        response = assistant_message.content[0].text.value
+                        self.logger.info(f"Got response: {response[:50]}...")
+                        return re.sub(r"【.*?】", "", response)
+                    else:
+                        raise ValueError("No assistant response found")
 
-                    # Удаление любых текстов между символами 【 и 】 включительно
-                    response = re.sub(r"【.*?】", "", response)
-                    
-                    return response
-                else:
-                    raise ValueError("No assistant response found")
-            else:
-                raise ValueError(f"Unexpected run status: {run.status}")
+                if run.status in ["failed", "cancelled", "expired"]:
+                    raise ValueError(f"Run failed with status: {run.status}")
+
+                # Добавляем небольшую задержку между запросами
+                await asyncio.sleep(1)
 
         except Exception as e:
             error_message = f"Error while getting response from ChatGPT assistant: {str(e)}"
