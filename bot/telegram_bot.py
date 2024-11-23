@@ -103,7 +103,7 @@ class TelegramBot:
 
         try:
             self.logger.info(f"Отправка сообщения ChatGPT для пользователя {user_id}")
-            response = await self.chatgpt_assistant.get_response(user_message, thread_id)
+            response = await self.chatgpt_assistant.get_response(user_message, thread_id, user_id)
             self.logger.info(f"Получен ответ от ChatGPT для пользователя {user_id}")
 
             # Добавление ответа ChatGPT в диалог
