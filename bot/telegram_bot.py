@@ -9,6 +9,7 @@ from email.mime.multipart import MIMEMultipart
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 from bot.chatgpt_assistant import ChatGPTAssistant
+from datetime import datetime
 
 class TelegramBot:
     def __init__(self):
@@ -17,8 +18,15 @@ class TelegramBot:
         self.application = Application.builder().token(self.token).build()
         self.logger = logging.getLogger(__name__)
         self.dialogs = {}
-        self.threads = self.load_threads()  # Load threads from file
-        self.file_lock = asyncio.Lock()  # Добавляем блокировку для файловой системы
+        self.threads = self.load_threads()
+        self.file_lock = asyncio.Lock()
+
+        # Email configuration
+        self.smtp_server = os.getenv('SMTP_SERVER')
+        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+        self.smtp_username = os.getenv('SMTP_USERNAME')
+        self.smtp_password = os.getenv('SMTP_PASSWORD')
+        self.notification_email = os.getenv('NOTIFICATION_EMAIL')
 
         # Установка директорий для диалогов и ответов
         self.dialogs_dir = 'dialogs'
@@ -149,6 +157,43 @@ class TelegramBot:
             # Конец HTML разметки
             await file.write('</body></html>')
 
+    async def send_contact_notification(self, contact_info: dict, username: str):
+        """
+        Асинхронно отправляет уведомление о новом контакте на email
+        """
+        if not all([self.smtp_server, self.smtp_username, self.smtp_password, self.notification_email]):
+            self.logger.error("Email configuration is incomplete")
+            return
+
+        message = MIMEMultipart()
+        message["From"] = self.smtp_username
+        message["To"] = self.notification_email
+        message["Subject"] = f"Новый контакт от пользователя {username}"
+
+        body = f"""
+        Получена новая контактная информация:
+        
+        Имя клиента: {contact_info.get('name')}
+        Телефон: {contact_info.get('phone_number')}
+        Предпочтительное время для звонка: {contact_info.get('preferred_call_time')}
+        
+        Пользователь Telegram: {username}
+        Время получения: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+        """
+
+        message.attach(MIMEText(body, "plain"))
+
+        try:
+            async with asyncio.Lock():
+                server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+                server.starttls()
+                server.login(self.smtp_username, self.smtp_password)
+                server.send_message(message)
+                server.quit()
+                self.logger.info(f"Contact notification email sent for user {username}")
+        except Exception as e:
+            self.logger.error(f"Failed to send contact notification email: {str(e)}")
+
     def load_threads(self):
         if os.path.exists('threads.json'):
             with open('threads.json', 'r') as file:
@@ -200,4 +245,3 @@ class TelegramBot:
             self.logger.info(f"Email sent successfully for user {user_id}")
         except Exception as e:
             self.logger.error(f"Failed to send email for user {user_id}: {e}")
-
