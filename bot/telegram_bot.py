@@ -178,11 +178,19 @@ class TelegramBot:
         self.logger.info(f"Saved threads: {self.threads}")
 
     def send_email(self, user_id, contact_info=None):
+        self.logger.info(f"Starting send_email for user_id: {user_id}, contact_info: {contact_info}")
+        
         # Set up the email server and login details
         smtp_server = 'smtp.mail.ru'
         smtp_port = 587
         smtp_user = os.getenv('SMTP_USER')
         smtp_password = os.getenv('SMTP_PASSWORD')
+        
+        self.logger.info(f"SMTP configuration - Server: {smtp_server}, Port: {smtp_port}, User: {smtp_user}")
+        
+        if not all([smtp_user, smtp_password]):
+            self.logger.error("Missing SMTP credentials in environment variables")
+            return
          
         # Create the email
         msg = MIMEMultipart('alternative')
@@ -190,6 +198,7 @@ class TelegramBot:
         msg['To'] = 'da1212112@gmail.com'
         
         if contact_info:
+            self.logger.info("Preparing email for contact information")
             msg['Subject'] = f"Новый контакт от пользователя {user_id}"
             body = f"""
             Получена новая контактная информация:
@@ -201,7 +210,9 @@ class TelegramBot:
             Пользователь Telegram: {user_id}
             Время получения: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
             """
+            self.logger.info(f"Contact info email body prepared: {body}")
         else:
+            self.logger.info("Preparing email for regular response")
             msg['Subject'] = f"ChatGPT Response for User {user_id}"
             # Attach the dialog and saved response
             with open(os.path.join(self.responses_dir, self.responses_filename), "r") as file:
@@ -216,11 +227,15 @@ class TelegramBot:
          
         # Send the email
         try:
+            self.logger.info("Attempting to send email...")
             server = smtplib.SMTP(smtp_server, smtp_port)
             server.starttls()
+            self.logger.info("Connected to SMTP server, attempting login...")
             server.login(smtp_user, smtp_password)
+            self.logger.info("Login successful, sending email...")
             server.sendmail(smtp_user, 'da1212112@gmail.com', msg.as_string())
             server.quit()
             self.logger.info(f"Email sent successfully for user {user_id}")
         except Exception as e:
-            self.logger.error(f"Failed to send email for user {user_id}: {e}")
+            self.logger.error(f"Failed to send email for user {user_id}. Error: {str(e)}")
+            raise  # Добавляем raise чтобы увидеть полный стек ошибки

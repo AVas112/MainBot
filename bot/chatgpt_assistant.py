@@ -52,14 +52,28 @@ class ChatGPTAssistant:
                     
                     for tool_call in tool_calls:
                         if tool_call.function.name == "get_client_contact_info":
+                            self.logger.info(f"Processing get_client_contact_info for user {user_id}")
                             contact_info = json.loads(tool_call.function.arguments)
+                            self.logger.info(f"Parsed contact info: {contact_info}")
+                            
+                            # Сохраняем информацию в файл
                             await self.contact_handler.save_contact_info(
                                 username=user_id,
                                 thread_id=thread_id,
                                 contact_info=contact_info
                             )
+                            
+                            # Отправляем email с контактной информацией
                             if self.telegram_bot:
-                                self.telegram_bot.send_email(user_id, contact_info)
+                                self.logger.info("TelegramBot instance found, attempting to send email")
+                                try:
+                                    self.telegram_bot.send_email(user_id, contact_info)
+                                    self.logger.info("Email sent successfully")
+                                except Exception as e:
+                                    self.logger.error(f"Error sending email: {str(e)}")
+                            else:
+                                self.logger.error("No TelegramBot instance available")
+                                
                             tool_outputs.append({
                                 "tool_call_id": tool_call.id,
                                 "output": json.dumps({"status": "success", "message": "Contact information saved and notification sent"})
