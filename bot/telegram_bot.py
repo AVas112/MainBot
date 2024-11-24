@@ -119,12 +119,12 @@ class TelegramBot:
             # Сохранение диалога в файл
             await self.save_dialogs(self.dialogs_filename, self.dialogs[user_id], username)
 
-            # Сохранение ответа в файл, если это ответ с контактной информацией
-            if "Спасибо, что обратились в КлинингУМамы!" in response:
+            # Проверяем, содержит ли ответ контактную информацию
+            contact_info = self.extract_contact_info(response)
+            if contact_info:
+                self.logger.info(f"Found contact info in response: {contact_info}")
                 await self.save_response(self.responses_filename, response.splitlines(), self.dialogs[user_id], username)
-                # Извлекаем контактную информацию из ответа
-                contact_info = self.extract_contact_info(response)
-                self.send_email(user_id, username, contact_info)  # Добавляем username в параметры
+                self.send_email(user_id, username, contact_info)
 
             await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
         except Exception as e:
@@ -205,18 +205,26 @@ class TelegramBot:
 
     def extract_contact_info(self, response):
         """Извлекает контактную информацию из ответа"""
-        lines = response.split('\n')
-        contact_info = {}
-        
-        for line in lines:
-            if 'Имя:' in line:
-                contact_info['name'] = line.split('Имя:')[1].strip()
-            elif 'Номер:' in line:
-                contact_info['phone_number'] = line.split('Номер:')[1].strip()
-            elif 'Время связи:' in line:
-                contact_info['preferred_call_time'] = line.split('Время связи:')[1].strip()
-        
-        return contact_info
+        try:
+            if "Спасибо, что обратились в КлинингУМамы!" in response:
+                lines = response.split('\n')
+                contact_info = {}
+                
+                for line in lines:
+                    line = line.strip()
+                    if 'Имя:' in line:
+                        contact_info['name'] = line.split('Имя:')[1].strip()
+                    elif 'Номер:' in line:
+                        contact_info['phone_number'] = line.split('Номер:')[1].strip()
+                    elif 'Время связи:' in line:
+                        contact_info['preferred_call_time'] = line.split('Время связи:')[1].strip()
+                
+                self.logger.info(f"Extracted contact info: {contact_info}")
+                return contact_info if all(k in contact_info for k in ['name', 'phone_number', 'preferred_call_time']) else None
+            return None
+        except Exception as e:
+            self.logger.error(f"Error extracting contact info: {e}")
+            return None
 
     def send_email(self, user_id, username, contact_info=None):
         self.logger.info(f"Starting send_email for user_id: {user_id}, username: {username}, contact_info: {contact_info}")
