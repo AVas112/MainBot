@@ -313,8 +313,53 @@ class TelegramBot:
         else:
             self.logger.info("Preparing email for regular response")
             msg['Subject'] = f"ChatGPT Response for User {user_id}"
-            msg.attach(MIMEText("Regular response email", 'plain'))
 
+            # Форматируем диалог с отступами
+            dialog_text = []
+            if user_id in self.dialogs:
+                dialog_text = self.dialogs[user_id]
+
+            # Формируем HTML тело письма для обычного ответа
+            html_body = f"""
+            <html>
+            <head>
+                <style>
+                    body {{ font-family: Arial, sans-serif; line-height: 1.6; }}
+                    .section {{ margin: 20px 0; }}
+                    .message {{ margin: 10px 0; }}
+                    .user {{ color: blue; }}
+                    .assistant {{ color: green; }}
+                </style>
+            </head>
+            <body>
+                <div class="section">
+                    <h2>Диалог с пользователем @{username}</h2>
+                    {''.join(f'<div class="message {("user" if "User:" in msg else "assistant")}">{msg}</div>' for msg in dialog_text)}
+                </div>
+            </body>
+            </html>
+            """
+
+            # Создаем текстовую версию
+            text_body = f"""
+            Диалог с пользователем @{username}:
+
+            {chr(10).join(dialog_text)}
+            """
+
+            # Сохраняем email сообщение в файл
+            email_filename = self.get_unique_filename(self.emails_dir, user_id, username, "email.html")
+            with open(os.path.join(self.emails_dir, email_filename), 'w', encoding='utf-8') as f:
+                f.write(html_body)
+
+            # Добавляем обе версии в письмо
+            part1 = MIMEText(text_body, 'plain')
+            part2 = MIMEText(html_body, 'html')
+            msg.attach(part1)
+            msg.attach(part2)
+
+            self.logger.info(f"Regular response email prepared and saved to {email_filename}")
+        
         try:
             # Connect to the SMTP server and send the email
             with smtplib.SMTP(smtp_server, smtp_port) as server:
