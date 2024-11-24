@@ -262,7 +262,7 @@ class TelegramBot:
             <body>
                 <div class="section">
                     <h2>Заказ</h2>
-                    <p><strong>Клиент:</strong> {user_id} (@{username})</p>
+                    <p><strong>Клиент:</strong> {user_id} ({f"@{username}" if username else "без username"})</p>
                     <p>Спасибо, что обратились в КлинингУМамы!</p>
                     <p><strong>Имя:</strong> {contact_info.get('name', '')}</p>
                     <p><strong>Номер:</strong> {contact_info.get('phone_number', '')}</p>
@@ -281,7 +281,7 @@ class TelegramBot:
             text_body = f"""
             Заказ
 
-            Клиент: {user_id} (@{username})
+            Клиент: {user_id} ({f"@{username}" if username else "без username"})
 
             Спасибо, что обратились в КлинингУМамы!
 
@@ -333,7 +333,7 @@ class TelegramBot:
             </head>
             <body>
                 <div class="section">
-                    <h2>Диалог с пользователем @{username}</h2>
+                    <h2>Диалог с пользователем {f"@{username}" if username else f"ID: {user_id}"}</h2>
                     {''.join(f'<div class="message {("user" if "User:" in msg else "assistant")}">{msg}</div>' for msg in dialog_text)}
                 </div>
             </body>
@@ -342,7 +342,7 @@ class TelegramBot:
 
             # Создаем текстовую версию
             text_body = f"""
-            Диалог с пользователем @{username}:
+            Диалог с пользователем {f"@{username}" if username else f"ID: {user_id}"}:
 
             {chr(10).join(dialog_text)}
             """
