@@ -200,6 +200,20 @@ class TelegramBot:
         if contact_info:
             self.logger.info("Preparing email for contact information")
             msg['Subject'] = f"Новый заказ от пользователя {user_id}"
+
+            # Получаем последние сообщения из диалога
+            user_message = ""
+            assistant_message = ""
+            
+            if user_id in self.dialogs:
+                dialog = self.dialogs[user_id]
+                if isinstance(dialog, dict):
+                    user_message = dialog.get('last_user_message', '')
+                    assistant_message = dialog.get('last_assistant_message', '')
+                elif isinstance(dialog, list) and len(dialog) >= 2:
+                    user_message = dialog[-2] if len(dialog) >= 2 else ""
+                    assistant_message = dialog[-1] if len(dialog) >= 1 else ""
+
             body = f"""
             Заказ
             Клиент: {user_id}
@@ -215,9 +229,9 @@ class TelegramBot:
             Ваш персональный менеджер скоро с вами свяжется!
 
             Диалог с клиентом
-            User: {self.dialogs.get(user_id, {}).get('last_user_message', '')}
+            User: {user_message}
 
-            ChatGPT: {self.dialogs.get(user_id, {}).get('last_assistant_message', '')}
+            ChatGPT: {assistant_message}
             """
             self.logger.info(f"Contact info email body prepared: {body}")
         else:
