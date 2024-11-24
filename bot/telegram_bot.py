@@ -30,6 +30,12 @@ class TelegramBot:
         # Установка директорий для диалогов и ответов
         self.dialogs_dir = 'dialogs'
         self.responses_dir = 'responses'
+        self.emails_dir = 'emails'  # Новая директория для email сообщений
+        
+        # Создаем директории, если они не существуют
+        for directory in [self.dialogs_dir, self.responses_dir, self.emails_dir]:
+            if not os.path.exists(directory):
+                os.makedirs(directory)
 
         # Создаем ChatGPTAssistant после инициализации всех необходимых атрибутов
         self.chatgpt_assistant = ChatGPTAssistant(telegram_bot=self)
@@ -99,6 +105,8 @@ class TelegramBot:
             self.dialogs_filename = self.get_unique_filename(self.dialogs_dir, user_id, username, "dialogs.txt")
         if not hasattr(self, 'responses_filename'):
             self.responses_filename = self.get_unique_filename(self.responses_dir, user_id, username, "response.txt")
+        if not hasattr(self, 'emails_filename'):
+            self.emails_filename = self.get_unique_filename(self.emails_dir, user_id, username, "email.html")
 
         try:
             self.logger.info(f"Отправка сообщения ChatGPT для пользователя {user_id}")
@@ -116,7 +124,7 @@ class TelegramBot:
                 await self.save_response(self.responses_filename, response.splitlines(), self.dialogs[user_id], username)
                 # Извлекаем контактную информацию из ответа
                 contact_info = self.extract_contact_info(response)
-                self.send_email(user_id, contact_info)  # Этот метод остается синхронным
+                self.send_email(user_id, username, contact_info)  # Добавляем username в параметры
 
             await context.bot.send_message(chat_id=update.effective_chat.id, text=response)
         except Exception as e:
@@ -210,8 +218,8 @@ class TelegramBot:
         
         return contact_info
 
-    def send_email(self, user_id, contact_info=None):
-        self.logger.info(f"Starting send_email for user_id: {user_id}, contact_info: {contact_info}")
+    def send_email(self, user_id, username, contact_info=None):
+        self.logger.info(f"Starting send_email for user_id: {user_id}, username: {username}, contact_info: {contact_info}")
         
         # Set up the email server and login details
         smtp_server = 'smtp.mail.ru'
@@ -254,7 +262,7 @@ class TelegramBot:
             <body>
                 <div class="section">
                     <h2>Заказ</h2>
-                    <p><strong>Клиент:</strong> {user_id}</p>
+                    <p><strong>Клиент:</strong> {user_id} (@{username})</p>
                     <p>Спасибо, что обратились в КлинингУМамы!</p>
                     <p><strong>Имя:</strong> {contact_info.get('name', '')}</p>
                     <p><strong>Номер:</strong> {contact_info.get('phone_number', '')}</p>
@@ -273,7 +281,7 @@ class TelegramBot:
             text_body = f"""
             Заказ
 
-            Клиент: {user_id}
+            Клиент: {user_id} (@{username})
 
             Спасибо, что обратились в КлинингУМамы!
 
@@ -290,13 +298,18 @@ class TelegramBot:
             {chr(10).join(dialog_text)}
             """
 
+            # Сохраняем email сообщение в файл
+            email_filename = self.get_unique_filename(self.emails_dir, user_id, username, "email.html")
+            with open(os.path.join(self.emails_dir, email_filename), 'w', encoding='utf-8') as f:
+                f.write(html_body)
+
             # Добавляем обе версии в письмо
             part1 = MIMEText(text_body, 'plain')
             part2 = MIMEText(html_body, 'html')
             msg.attach(part1)
             msg.attach(part2)
 
-            self.logger.info(f"Contact info email body prepared")
+            self.logger.info(f"Contact info email body prepared and saved to {email_filename}")
         else:
             self.logger.info("Preparing email for regular response")
             msg['Subject'] = f"ChatGPT Response for User {user_id}"
