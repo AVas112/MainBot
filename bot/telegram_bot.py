@@ -214,25 +214,29 @@ class TelegramBot:
                     user_message = dialog[-2] if len(dialog) >= 2 else ""
                     assistant_message = dialog[-1] if len(dialog) >= 1 else ""
 
-            body = f"""
-Заказ
-Клиент: {user_id}
+            # Добавляем отступы в сообщения диалога для лучшей читаемости
+            user_message_formatted = "\n".join(line.strip() for line in user_message.split("\n"))
+            assistant_message_formatted = "\n".join(line.strip() for line in assistant_message.split("\n"))
 
-Спасибо, что обратились в КлинингУМамы!
-
-Имя: {contact_info.get('name')}
-
-Номер: {contact_info.get('phone_number')}
-
-Время связи: {contact_info.get('preferred_call_time')}
-
-Ваш персональный менеджер скоро с вами свяжется!
-
-Диалог с клиентом
-User: {user_message}
-
-ChatGPT: {assistant_message}
-"""
+            body = (
+                f"Заказ\n"
+                f"Клиент: {user_id}\n"
+                f"\n"
+                f"Спасибо, что обратились в КлинингУМамы!\n"
+                f"\n"
+                f"Имя: {contact_info.get('name')}\n"
+                f"\n"
+                f"Номер: {contact_info.get('phone_number')}\n"
+                f"\n"
+                f"Время связи: {contact_info.get('preferred_call_time')}\n"
+                f"\n"
+                f"Ваш персональный менеджер скоро с вами свяжется!\n"
+                f"\n"
+                f"Диалог с клиентом\n"
+                f"User: {user_message_formatted}\n"
+                f"\n"
+                f"ChatGPT: {assistant_message_formatted}\n"
+            )
             self.logger.info(f"Contact info email body prepared: {body}")
         else:
             self.logger.info("Preparing email for regular response")
