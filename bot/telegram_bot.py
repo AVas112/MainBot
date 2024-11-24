@@ -199,16 +199,25 @@ class TelegramBot:
         
         if contact_info:
             self.logger.info("Preparing email for contact information")
-            msg['Subject'] = f"Новый контакт от пользователя {user_id}"
+            msg['Subject'] = f"Новый заказ от пользователя {user_id}"
             body = f"""
-            Получена новая контактная информация:
-            
-            Имя клиента: {contact_info.get('name')}
-            Телефон: {contact_info.get('phone_number')}
-            Предпочтительное время для звонка: {contact_info.get('preferred_call_time')}
-            
-            Пользователь Telegram: {user_id}
-            Время получения: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+            Заказ
+            Клиент: {user_id}
+
+            Спасибо, что обратились в КлинингУМамы!
+
+            Имя: {contact_info.get('name')}
+
+            Номер: {contact_info.get('phone_number')}
+
+            Время связи: {contact_info.get('preferred_call_time')}
+
+            Ваш персональный менеджер скоро с вами свяжется!
+
+            Диалог с клиентом
+            User: {self.dialogs.get(user_id, {}).get('last_user_message', '')}
+
+            ChatGPT: {self.dialogs.get(user_id, {}).get('last_assistant_message', '')}
             """
             self.logger.info(f"Contact info email body prepared: {body}")
         else:
