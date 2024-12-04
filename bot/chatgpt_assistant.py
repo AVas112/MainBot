@@ -6,13 +6,17 @@ import logging
 import os
 import re
 from string import Template
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TypedDict
 
 from openai import OpenAI
 from openai.types.beta.threads import Run
-from openai.types.beta.threads.runs import RunSubmitToolOutputsParams
 
 from bot.contact_handler import ContactHandler
+
+
+class ToolOutput(TypedDict):
+    tool_call_id: str
+    output: str
 
 
 class ChatGPTAssistant:
@@ -113,7 +117,7 @@ class ChatGPTAssistant:
         tool_call: Any,
         user_id: str,
         thread_id: str
-    ) -> RunSubmitToolOutputsParams.ToolOutput:
+    ) -> ToolOutput:
         self._log_message(f"Processing get_client_contact_info for user {user_id}")
         contact_info = json.loads(tool_call.function.arguments)
         self._log_message(f"Parsed contact info: {contact_info}")
