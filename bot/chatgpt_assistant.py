@@ -8,9 +8,8 @@ import re
 from string import Template
 from typing import Any, Dict, Optional, TypedDict
 
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
-from openai.error import OpenAIError, APIError, APIConnectionError
 
 from bot.contact_handler import ContactHandler
 
@@ -177,10 +176,6 @@ class ChatGPTAssistant:
         ------
         OpenAIError
             При ошибках в API OpenAI.
-        APIError
-            При общих ошибках API.
-        APIConnectionError
-            При ошибках соединения с API.
         """
         try:
             self.write_log(f"Getting response for message: {user_message[:50]}...")
@@ -190,17 +185,7 @@ class ChatGPTAssistant:
             return await self.process_run(run=run, thread_id=thread_id, user_id=user_id)
 
         except OpenAIError as error:
-            error_message = f"OpenAI error: {str(error)}"
-            self.logger.error(error_message)
-            raise
-
-        except APIError as error:
-            error_message = f"API error: {str(error)}"
-            self.logger.error(error_message)
-            raise
-
-        except APIConnectionError as error:
-            error_message = f"API connection error: {str(error)}"
+            error_message = f"OpenAI API error: {str(error)}"
             self.logger.error(error_message)
             raise
 
