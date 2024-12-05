@@ -123,6 +123,7 @@ class TelegramBot:
             contact_info = self.extract_contact_info(response)
             if contact_info:
                 self.logger.info(f"Found contact info in response: {contact_info}")
+                await self.chatgpt_assistant.contact_handler.store_contact_info(username, thread_id, contact_info)
                 await self.save_response(self.responses_filename, response.splitlines(), self.dialogs[user_id], username)
                 self.send_email(user_id, username, contact_info)
 
