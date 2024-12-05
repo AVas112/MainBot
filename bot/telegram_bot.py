@@ -396,7 +396,7 @@ class TelegramBot:
         Template
             Шаблон письма.
         """
-        return Template """
+        return Template ("""
         <html>
         <head>
             <style>
@@ -423,7 +423,7 @@ class TelegramBot:
             </div>
         </body>
         </html>
-        """
+        """)
     
     def format_dialog(self, dialog_text):
         """
