@@ -326,7 +326,7 @@ class ChatGPTAssistant:
         contact_info : Dict[str, Any]
             Информация о контакте.
         """
-        await self.contact_handler.save_contact_info(
+        await self.contact_handler.store_contact_info(
             username=user_id,
             thread_id=thread_id,
             contact_info=contact_info
