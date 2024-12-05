@@ -46,8 +46,7 @@ class TelegramBot:
 
     def generate_unique_filename(self, directory, user_id, username, base_filename):
         """
-        Генерирует уникальное имя файла в заданном каталоге,
-        добавляя числовой суффикс к основному имени файла, если файл уже существует.
+        Генерирует имя файла для пользователя.
 
         Parameters
         ----------
@@ -63,16 +62,21 @@ class TelegramBot:
         Returns
         -------
         str
-            Уникальное имя файла.
+            Имя файла для пользователя.
         """
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        count = 1
-        filename = f"{user_id}_{username}_{base_filename}"
-        while os.path.exists(os.path.join(directory, filename)):
-            filename = f"{user_id}_{username}_{base_filename}_{count}"
-            count += 1
+        # Для email используем уникальные имена, для диалогов - постоянные
+        if directory == self.emails_dir:
+            count = 1
+            filename = f"{user_id}_{username}_{base_filename}"
+            while os.path.exists(os.path.join(directory, filename)):
+                filename = f"{user_id}_{username}_{base_filename}_{count}"
+                count += 1
+        else:
+            filename = f"{user_id}_{username}_{base_filename}"
+        
         return filename
 
     def run(self):
@@ -262,25 +266,30 @@ class TelegramBot:
         username : str
             Имя пользователя для отображения в заголовке.
         """
-        async with aiofiles.open(os.path.join(self.dialogs_dir, filename), "w") as file:
-            # Начало HTML разметки
-            await file.write('<!DOCTYPE html>\n<html>\n<head>\n')
-            await file.write('<meta charset="UTF-8">\n')
-            await file.write(Template('<title>Dialog with $username</title>\n').substitute(username=username))
-            await file.write('<style>\n')
-            await file.write('body { font-family: Arial, sans-serif; margin: 20px; }\n')
-            await file.write('.message { margin: 10px 0; }\n')
-            await file.write('.user { color: blue; }\n')
-            await file.write('.assistant { color: green; }\n')
-            await file.write('</style>\n</head>\n<body>\n')
-            
-            # Добавляем каждое сообщение с соответствующим форматированием
-            for line in dialog_lines:
-                css_class = 'user' if line.startswith('User:') else 'assistant'
-                await file.write(Template('<div class="message $css_class">$line</div>\n').substitute(css_class=css_class, line=line))
-            
-            # Конец HTML разметки
-            await file.write('</body></html>')
+        file_path = os.path.join(self.dialogs_dir, filename)
+        
+        # Создаем HTML контент
+        html_content = '<!DOCTYPE html>\n<html>\n<head>\n'
+        html_content += '<meta charset="UTF-8">\n'
+        html_content += Template('<title>Dialog with $username</title>\n').substitute(username=username)
+        html_content += '<style>\n'
+        html_content += 'body { font-family: Arial, sans-serif; margin: 20px; }\n'
+        html_content += '.message { margin: 10px 0; }\n'
+        html_content += '.user { color: blue; }\n'
+        html_content += '.assistant { color: green; }\n'
+        html_content += '</style>\n</head>\n<body>\n'
+        
+        # Добавляем каждое сообщение с соответствующим форматированием
+        for line in dialog_lines:
+            css_class = 'user' if line.startswith('User:') else 'assistant'
+            html_content += Template('<div class="message $css_class">$line</div>\n').substitute(css_class=css_class, line=line)
+        
+        html_content += '</body></html>'
+
+        # Сохраняем файл с использованием блокировки
+        async with self.file_lock:
+            async with aiofiles.open(file_path, "w", encoding='utf-8') as file:
+                await file.write(html_content)
 
     def load_threads(self):
         """
