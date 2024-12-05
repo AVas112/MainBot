@@ -10,21 +10,72 @@ from typing import Any, Dict, Optional, TypedDict
 
 from openai import OpenAI
 from openai.types.beta.threads import Run
+from openai.error import OpenAIError, APIError, APIConnectionError
 
 from bot.contact_handler import ContactHandler
 
 
 class ToolOutput(TypedDict):
+    """
+    Структура для хранения результата выполнения инструмента.
+
+    Attributes
+    ----------
+    tool_call_id : str
+        Идентификатор вызова инструмента.
+    output : str
+        Результат выполнения инструмента в формате JSON.
+    """
     tool_call_id: str
     output: str
 
 
 class ChatGPTAssistant:
+    """
+    Класс для работы с OpenAI Assistant API.
+
+    Parameters
+    ----------
+    telegram_bot : Optional[Any]
+        Экземпляр телеграм бота для отправки уведомлений.
+
+    Attributes
+    ----------
+    api_key : str
+        Ключ API OpenAI.
+    client : OpenAI
+        Клиент OpenAI API.
+    assistant_id : str
+        Идентификатор ассистента OpenAI.
+    logger : logging.Logger
+        Логгер для записи информации о работе ассистента.
+    contact_handler : ContactHandler
+        Обработчик контактной информации.
+    telegram_bot : Optional[Any]
+        Экземпляр телеграм бота.
+    _log_template : Template
+        Шаблон для форматирования сообщений лога.
+    """
     def __init__(self, telegram_bot: Optional[Any] = None) -> None:
+        """
+        Инициализация ассистента.
+
+        Parameters
+        ----------
+        telegram_bot : Optional[Any]
+            Экземпляр телеграм бота для отправки уведомлений.
+
+        Raises
+        ------
+        ValueError
+            Если не установлен OPENAI_ASSISTANT_ID в переменных окружения.
+        """
         self.api_key = os.getenv("OPENAI_API_KEY")
         self.client = OpenAI(
             api_key=self.api_key,
-            default_headers={"OpenAI-Beta": "assistants=v2"}
+            default_headers={
+                "OpenAI-Beta": "assistants=v2"
+            }
         )
         self.assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
         if self.assistant_id is None:
@@ -36,44 +87,146 @@ class ChatGPTAssistant:
         self._log_template = Template("$message")
 
     def create_thread(self, user_id: str) -> str:
-        self.logger.info(
-            self._log_template.substitute(message=f"Creating new thread for user {user_id}")
+        """
+        Создает новый поток для общения с пользователем.
+
+        Parameters
+        ----------
+        user_id : str
+            Идентификатор пользователя.
+
+        Returns
+        -------
+        str
+            Идентификатор созданного потока.
+        """
+        self.write_log(
+            message=f"Creating new thread for user {user_id}"
         )
         thread = self.client.beta.threads.create()
         return thread.id
 
-    async def get_response(self, user_message: str, thread_id: str, user_id: str) -> str:
-        try:
-            self._log_message(f"Getting response for message: {user_message[:50]}...")
-            self._add_user_message(thread_id=thread_id, message=user_message)
-            
-            run = self._create_run(thread_id=thread_id)
-            return await self._process_run(run=run, thread_id=thread_id, user_id=user_id)
+    def write_log(self, message: str) -> None:
+        """
+        Записывает сообщение в лог.
 
-        except Exception as error:
-            error_message = f"Error while getting response from ChatGPT assistant: {str(error)}"
-            self.logger.error(error_message)
-            raise
-
-    def _log_message(self, message: str) -> None:
+        Parameters
+        ----------
+        message : str
+            Текст сообщения для записи в лог.
+        """
         self.logger.info(self._log_template.substitute(message=message))
 
-    def _add_user_message(self, thread_id: str, message: str) -> None:
-        self._log_message("Adding user message to thread")
+    def add_user_message(self, thread_id: str, message: str) -> None:
+        """
+        Добавляет сообщение пользователя в поток.
+
+        Parameters
+        ----------
+        thread_id : str
+            Идентификатор потока.
+        message : str
+            Текст сообщения пользователя.
+        """
+        self.write_log(message="Adding user message to thread")
         self.client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
             content=message
         )
 
-    def _create_run(self, thread_id: str) -> Run:
-        self._log_message("Creating run")
+    def create_run(self, thread_id: str) -> Run:
+        """
+        Создает новый запуск для обработки сообщений в потоке.
+
+        Parameters
+        ----------
+        thread_id : str
+            Идентификатор потока.
+
+        Returns
+        -------
+        Run
+            Объект запуска.
+        """
+        self.write_log(message="Creating run")
         return self.client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=self.assistant_id
         )
 
-    async def _process_run(self, run: Run, thread_id: str, user_id: str) -> str:
+    async def get_response(self, user_message: str, thread_id: str, user_id: str) -> str:
+        """
+        Получает ответ от ассистента на сообщение пользователя.
+
+        Parameters
+        ----------
+        user_message : str
+            Сообщение пользователя.
+        thread_id : str
+            Идентификатор потока.
+        user_id : str
+            Идентификатор пользователя.
+
+        Returns
+        -------
+        str
+            Ответ ассистента.
+
+        Raises
+        ------
+        OpenAIError
+            При ошибках в API OpenAI.
+        APIError
+            При общих ошибках API.
+        APIConnectionError
+            При ошибках соединения с API.
+        """
+        try:
+            self.write_log(f"Getting response for message: {user_message[:50]}...")
+            self.add_user_message(thread_id=thread_id, message=user_message)
+            
+            run = self.create_run(thread_id=thread_id)
+            return await self.process_run(run=run, thread_id=thread_id, user_id=user_id)
+
+        except OpenAIError as error:
+            error_message = f"OpenAI error: {str(error)}"
+            self.logger.error(error_message)
+            raise
+
+        except APIError as error:
+            error_message = f"API error: {str(error)}"
+            self.logger.error(error_message)
+            raise
+
+        except APIConnectionError as error:
+            error_message = f"API connection error: {str(error)}"
+            self.logger.error(error_message)
+            raise
+
+        except Exception as error:
+            error_message = f"Unexpected error: {str(error)}"
+            self.logger.error(error_message)
+            raise
+
+    async def process_run(self, run: Run, thread_id: str, user_id: str) -> str:
+        """
+        Обрабатывает запуск для получения ответа от ассистента.
+
+        Parameters
+        ----------
+        run : Run
+            Объект запуска.
+        thread_id : str
+            Идентификатор потока.
+        user_id : str
+            Идентификатор пользователя.
+
+        Returns
+        -------
+        str
+            Ответ ассистента.
+        """
         while True:
             run = self.client.beta.threads.runs.retrieve(
                 thread_id=thread_id,
@@ -81,25 +234,42 @@ class ChatGPTAssistant:
             )
 
             if run.status == "requires_action":
-                run = await self._handle_required_action(run=run, thread_id=thread_id, user_id=user_id)
+                run = await self.handle_required_action(run=run, thread_id=thread_id, user_id=user_id)
                 continue
 
             if run.status == "completed":
-                return await self._get_assistant_response(thread_id=thread_id)
+                return await self.get_assistant_response(thread_id=thread_id)
 
             if run.status in ["failed", "cancelled", "expired"]:
                 raise ValueError(f"Run failed with status: {run.status}")
 
             await asyncio.sleep(1)
 
-    async def _handle_required_action(self, run: Run, thread_id: str, user_id: str) -> Run:
-        self._log_message("Run requires action (tool calls)")
+    async def handle_required_action(self, run: Run, thread_id: str, user_id: str) -> Run:
+        """
+        Обрабатывает необходимые действия для запуска.
+
+        Parameters
+        ----------
+        run : Run
+            Объект запуска.
+        thread_id : str
+            Идентификатор потока.
+        user_id : str
+            Идентификатор пользователя.
+
+        Returns
+        -------
+        Run
+            Объект запуска после обработки необходимых действий.
+        """
+        self.write_log(message="Run requires action (tool calls)")
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
 
         for tool_call in tool_calls:
             if tool_call.function.name == "get_client_contact_info":
-                tool_output = await self._process_contact_info(
+                tool_output = await self.process_contact_info(
                     tool_call=tool_call,
                     user_id=user_id,
                     thread_id=thread_id
@@ -112,17 +282,34 @@ class ChatGPTAssistant:
             tool_outputs=tool_outputs
         )
 
-    async def _process_contact_info(
+    async def process_contact_info(
         self,
         tool_call: Any,
         user_id: str,
         thread_id: str
     ) -> ToolOutput:
-        self._log_message(f"Processing get_client_contact_info for user {user_id}")
-        contact_info = json.loads(tool_call.function.arguments)
-        self._log_message(f"Parsed contact info: {contact_info}")
+        """
+        Обрабатывает информацию о контакте пользователя.
 
-        await self._save_and_notify_contact(
+        Parameters
+        ----------
+        tool_call : Any
+            Вызов инструмента для получения информации о контакте.
+        user_id : str
+            Идентификатор пользователя.
+        thread_id : str
+            Идентификатор потока.
+
+        Returns
+        -------
+        ToolOutput
+            Результат обработки информации о контакте.
+        """
+        self.write_log(f"Processing get_client_contact_info for user {user_id}")
+        contact_info = json.loads(tool_call.function.arguments)
+        self.write_log(f"Parsed contact info: {contact_info}")
+
+        await self.save_and_notify_contact(
             user_id=user_id,
             thread_id=thread_id,
             contact_info=contact_info
@@ -136,12 +323,24 @@ class ChatGPTAssistant:
             })
         }
 
-    async def _save_and_notify_contact(
+    async def save_and_notify_contact(
         self,
         user_id: str,
         thread_id: str,
         contact_info: Dict[str, Any]
     ) -> None:
+        """
+        Сохраняет информацию о контакте и отправляет уведомление.
+
+        Parameters
+        ----------
+        user_id : str
+            Идентификатор пользователя.
+        thread_id : str
+            Идентификатор потока.
+        contact_info : Dict[str, Any]
+            Информация о контакте.
+        """
         await self.contact_handler.save_contact_info(
             username=user_id,
             thread_id=thread_id,
@@ -149,17 +348,30 @@ class ChatGPTAssistant:
         )
 
         if self.telegram_bot is not None:
-            self._log_message("TelegramBot instance found, attempting to send email")
+            self.write_log("TelegramBot instance found, attempting to send email")
             try:
                 self.telegram_bot.send_email(user_id, contact_info)
-                self._log_message("Email sent successfully")
+                self.write_log("Email sent successfully")
             except Exception as error:
                 self.logger.error(f"Error sending email: {str(error)}")
         else:
             self.logger.error("No TelegramBot instance available")
 
-    async def _get_assistant_response(self, thread_id: str) -> str:
-        self._log_message("Run completed, retrieving assistant message")
+    async def get_assistant_response(self, thread_id: str) -> str:
+        """
+        Получает ответ от ассистента.
+
+        Parameters
+        ----------
+        thread_id : str
+            Идентификатор потока.
+
+        Returns
+        -------
+        str
+            Ответ ассистента.
+        """
+        self.write_log("Run completed, retrieving assistant message")
         messages = self.client.beta.threads.messages.list(thread_id=thread_id)
         assistant_message = next(
             (msg for msg in messages.data if msg.role == "assistant"),
@@ -168,7 +380,7 @@ class ChatGPTAssistant:
 
         if assistant_message is not None and assistant_message.content:
             response = assistant_message.content[0].text.value
-            self._log_message(f"Got response: {response[:50]}...")
+            self.write_log(f"Got response: {response[:50]}...")
             return re.sub(r"【.*?】", "", response)
         
         raise ValueError("No assistant response found")
