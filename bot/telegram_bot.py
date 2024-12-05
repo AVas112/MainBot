@@ -198,9 +198,9 @@ class TelegramBot:
                     .substitute(user_id=user_id)
                 )
                 response = await self.chatgpt_assistant.get_response(
-                    message=message_text,
+                    user_message=message_text,
                     thread_id=thread_id,
-                    user_id=user_id
+                    user_id=str(user_id)
                 )
                 self.logger.info(
                     Template("Получен ответ от ChatGPT для пользователя $user_id")
