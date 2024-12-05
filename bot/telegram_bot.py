@@ -216,22 +216,35 @@ class TelegramBot:
                         directory=self.dialogs_dir,
                         user_id=user_id,
                         username=username,
-                        base_filename="dialogs.txt"
+                        base_filename="dialogs.html"
                     )
                 if not hasattr(self, 'responses_filename'):
                     self.responses_filename = self.generate_unique_filename(
                         directory=self.responses_dir,
                         user_id=user_id,
                         username=username,
-                        base_filename="response.txt"
+                        base_filename="response.html"
                     )
                 if not hasattr(self, 'emails_filename'):
                     self.emails_filename = self.generate_unique_filename(
                         directory=self.emails_dir,
                         user_id=user_id,
                         username=username,
-                        base_filename="email.txt"
+                        base_filename="email.html"
                     )
+
+                # Сохраняем диалог и ответ
+                await self.save_dialogs(
+                    filename=self.dialogs_filename,
+                    dialog_lines=self.dialogs[user_id],
+                    username=username
+                )
+                await self.save_response(
+                    filename=self.responses_filename,
+                    response_lines=[response],
+                    dialog_lines=self.dialogs[user_id],
+                    username=username
+                )
 
                 await update.message.reply_text(text=response)
                 
