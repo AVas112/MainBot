@@ -32,13 +32,12 @@ class TelegramBot:
         self.smtp_password = os.getenv('SMTP_PASSWORD')
         self.notification_email = os.getenv('NOTIFICATION_EMAIL')
 
-        # Установка директорий для диалогов и ответов
+        # Установка директорий для диалогов и email сообщений
         self.dialogs_dir = 'dialogs'
-        self.responses_dir = 'responses'
-        self.emails_dir = 'emails'  # Новая директория для email сообщений
+        self.emails_dir = 'emails'
         
         # Создаем директории, если они не существуют
-        for directory in [self.dialogs_dir, self.responses_dir, self.emails_dir]:
+        for directory in [self.dialogs_dir, self.emails_dir]:
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
@@ -218,13 +217,6 @@ class TelegramBot:
                         username=username,
                         base_filename="dialogs.html"
                     )
-                if not hasattr(self, 'responses_filename'):
-                    self.responses_filename = self.generate_unique_filename(
-                        directory=self.responses_dir,
-                        user_id=user_id,
-                        username=username,
-                        base_filename="response.html"
-                    )
                 if not hasattr(self, 'emails_filename'):
                     self.emails_filename = self.generate_unique_filename(
                         directory=self.emails_dir,
@@ -233,15 +225,9 @@ class TelegramBot:
                         base_filename="email.html"
                     )
 
-                # Сохраняем диалог и ответ
+                # Сохраняем диалог
                 await self.save_dialogs(
                     filename=self.dialogs_filename,
-                    dialog_lines=self.dialogs[user_id],
-                    username=username
-                )
-                await self.save_response(
-                    filename=self.responses_filename,
-                    response_lines=[response],
                     dialog_lines=self.dialogs[user_id],
                     username=username
                 )
@@ -293,48 +279,6 @@ class TelegramBot:
             for line in dialog_lines:
                 css_class = 'user' if line.startswith('User:') else 'assistant'
                 await file.write(Template('<div class="message $css_class">$line</div>\n').substitute(css_class=css_class, line=line))
-            
-            # Конец HTML разметки
-            await file.write('</body></html>')
-
-    async def save_response(self, filename, response_lines, dialog_lines, username):
-        """
-        Сохраняет ответ в HTML файл вместе с диалогом.
-
-        Parameters
-        ----------
-        filename : str
-            Имя файла для сохранения ответа.
-        response_lines : list
-            Список строк ответа.
-        dialog_lines : list
-            Список строк диалога.
-        username : str
-            Имя пользователя для отображения в заголовке.
-        """
-        async with aiofiles.open(os.path.join(self.responses_dir, filename), "w") as file:
-            # Начало HTML разметки
-            await file.write('<!DOCTYPE html>\n<html>\n<head>\n')
-            await file.write('<meta charset="UTF-8">\n')
-            await file.write(Template('<title>Response for $username</title>\n').substitute(username=username))
-            await file.write('<style>\n')
-            await file.write('body { font-family: Arial, sans-serif; margin: 20px; }\n')
-            await file.write('.response { color: green; margin: 20px 0; }\n')
-            await file.write('.dialog { margin-top: 30px; }\n')
-            await file.write('.message { margin: 10px 0; }\n')
-            await file.write('</style>\n</head>\n<body>\n')
-            
-            # Добавляем ответ
-            await file.write('<div class="response">\n')
-            for line in response_lines:
-                await file.write(Template('<p>$line</p>\n').substitute(line=line))
-            await file.write('</div>\n')
-            
-            # Добавляем диалог
-            await file.write('<div class="dialog">\n<h2>Dialog History:</h2>\n')
-            for line in dialog_lines:
-                await file.write(Template('<div class="message">$line</div>\n').substitute(line=line))
-            await file.write('</div>\n')
             
             # Конец HTML разметки
             await file.write('</body></html>')
@@ -443,70 +387,44 @@ class TelegramBot:
         except smtplib.SMTPException as e:
             self.logger.error(Template("Ошибка при отправке письма: $error").substitute(error=e))
 
-    def create_email_template(self, is_contact_info=False):
+    def create_email_template(self):
         """
         Создает шаблон письма.
-
-        Parameters
-        ----------
-        is_contact_info : bool
-            Флаг, указывающий на тип письма.
 
         Returns
         -------
         Template
             Шаблон письма.
         """
-        if is_contact_info:
-            return Template("""
-            <html>
-            <head>
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; }
-                    .section { margin: 20px 0; }
-                    .message { margin: 10px 0; }
-                    .user { color: blue; }
-                    .assistant { color: green; }
-                </style>
-            </head>
-            <body>
-                <div class="section">
-                    <h2>Заказ</h2>
-                    <p><strong>Клиент:</strong> $user_id ($username)</p>
-                    <p>Спасибо, что обратились в КлинингУМамы!</p>
-                    <p><strong>Имя:</strong> $name</p>
-                    <p><strong>Номер:</strong> $phone</p>
-                    <p><strong>Время связи:</strong> $time</p>
-                    <p>Ваш персональный менеджер скоро с вами свяжется!</p>
-                </div>
-                <div class="section">
-                    <h2>Диалог с клиентом</h2>
-                    $dialog
-                </div>
-            </body>
-            </html>
-            """)
-        else:
-            return Template("""
-            <html>
-            <head>
-                <style>
-                    body { font-family: Arial, sans-serif; line-height: 1.6; }
-                    .section { margin: 20px 0; }
-                    .message { margin: 10px 0; }
-                    .user { color: blue; }
-                    .assistant { color: green; }
-                </style>
-            </head>
-            <body>
-                <div class="section">
-                    <h2>Диалог с пользователем $username</h2>
-                    $dialog
-                </div>
-            </body>
-            </html>
-            """)
-
+        return Template """
+        <html>
+        <head>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; }
+                .section { margin: 20px 0; }
+                .message { margin: 10px 0; }
+                .user { color: blue; }
+                .assistant { color: green; }
+            </style>
+        </head>
+        <body>
+            <div class="section">
+                <h2>Заказ</h2>
+                <p><strong>Клиент:</strong> $user_id ($username)</p>
+                <p>Спасибо, что обратились в КлинингУМамы!</p>
+                <p><strong>Имя:</strong> $name</p>
+                <p><strong>Номер:</strong> $phone</p>
+                <p><strong>Время связи:</strong> $time</p>
+                <p>Ваш персональный менеджер скоро с вами свяжется!</p>
+            </div>
+            <div class="section">
+                <h2>Диалог с клиентом</h2>
+                $dialog
+            </div>
+        </body>
+        </html>
+        """
+    
     def format_dialog(self, dialog_text):
         """
         Форматирует диалог для отображения в письме.
@@ -534,9 +452,13 @@ class TelegramBot:
             ID пользователя.
         username : str
             Имя пользователя.
-        contact_info : dict, optional
+        contact_info : dict
             Контактная информация пользователя.
         """
+        if not contact_info:
+            self.logger.error("Отсутствует контактная информация для отправки письма")
+            return
+
         self.logger.info(Template("Начинаем отправку письма для user_id: $user_id, username: $username").substitute(user_id=user_id, username=username))
         
         if not all([self.smtp_username, self.smtp_password]):
@@ -546,30 +468,20 @@ class TelegramBot:
         msg = MIMEMultipart('alternative')
         msg['From'] = self.smtp_username
         msg['To'] = 'da1212112@gmail.com'
+        msg['Subject'] = Template("Новый заказ от пользователя $user_id").substitute(user_id=user_id)
 
         dialog_text = self.dialogs.get(user_id, [])
         formatted_dialog = self.format_dialog(dialog_text)
         
-        if contact_info is not None:
-            template = self.create_email_template(is_contact_info=True)
-            msg['Subject'] = Template("Новый заказ от пользователя $user_id").substitute(user_id=user_id)
-            
-            html_body = template.substitute(
-                user_id=user_id,
-                username=f"@{username}" if username else "без username",
-                name=contact_info.get('name', ''),
-                phone=contact_info.get('phone_number', ''),
-                time=contact_info.get('preferred_call_time', ''),
-                dialog=formatted_dialog
-            )
-        else:
-            template = self.create_email_template(is_contact_info=False)
-            msg['Subject'] = Template("Диалог с пользователем $user_id").substitute(user_id=user_id)
-            
-            html_body = template.substitute(
-                username=f"@{username}" if username else f"ID: {user_id}",
-                dialog=formatted_dialog
-            )
+        template = self.create_email_template()
+        html_body = template.substitute(
+            user_id=user_id,
+            username=f"@{username}" if username else "без username",
+            name=contact_info.get('name', ''),
+            phone=contact_info.get('phone_number', ''),
+            time=contact_info.get('preferred_call_time', ''),
+            dialog=formatted_dialog
+        )
 
         # Сохраняем email сообщение в файл
         email_filename = self.generate_unique_filename(
