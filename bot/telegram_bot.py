@@ -210,24 +210,23 @@ class TelegramBot:
                     Template("ChatGPT: $response").substitute(response=response)
                 )
 
-                if not hasattr(self, 'dialogs_filename'):
-                    self.dialogs_filename = self.generate_unique_filename(
-                        directory=self.dialogs_dir,
-                        user_id=user_id,
-                        username=username,
-                        base_filename="dialogs.html"
-                    )
-                if not hasattr(self, 'emails_filename'):
-                    self.emails_filename = self.generate_unique_filename(
-                        directory=self.emails_dir,
-                        user_id=user_id,
-                        username=username,
-                        base_filename="email.html"
-                    )
+                # Генерируем новое имя файла для каждого диалога
+                dialogs_filename = self.generate_unique_filename(
+                    directory=self.dialogs_dir,
+                    user_id=user_id,
+                    username=username,
+                    base_filename="dialogs.html"
+                )
+                emails_filename = self.generate_unique_filename(
+                    directory=self.emails_dir,
+                    user_id=user_id,
+                    username=username,
+                    base_filename="email.html"
+                )
 
                 # Сохраняем диалог
                 await self.save_dialogs(
-                    filename=self.dialogs_filename,
+                    filename=dialogs_filename,
                     dialog_lines=self.dialogs[user_id],
                     username=username
                 )
