@@ -424,12 +424,9 @@ class TelegramBot:
         try:
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
-                server.login(
-                    username=self.smtp_username,
-                    password=self.smtp_password
-                )
+                server.login(self.smtp_username, self.smtp_password)
                 server.send_message(msg)
-                self.logger.info("Письмо успешно отправлено")
+                self.logger.info("Email sent successfully")
         except smtplib.SMTPException as e:
             self.logger.error(Template("Ошибка при отправке письма: $error").substitute(error=e))
 
