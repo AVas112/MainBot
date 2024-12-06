@@ -450,7 +450,7 @@ class TelegramBot:
         return ''.join(Template('<div class="message $css_class">$msg</div>').substitute(css_class=("user" if "User:" in msg else "assistant"), msg=msg) 
                       for msg in dialog_text)
 
-    def send_email(self, user_id, username, contact_info=None):
+    def send_email(self, user_id, update: Update, contact_info=None):
         """
         Отправляет email с информацией о диалоге.
 
@@ -458,11 +458,12 @@ class TelegramBot:
         ----------
         user_id : int
             ID пользователя.
-        username : str
-            Имя пользователя.
+        update : Update
+            Объект обновления от Telegram.
         contact_info : dict
             Контактная информация пользователя.
         """
+        username = update.effective_user.username
         if not contact_info:
             self.logger.error("Отсутствует контактная информация для отправки письма")
             return
