@@ -335,7 +335,7 @@ class ChatGPTAssistant:
         if self.telegram_bot is not None:
             self.write_log("TelegramBot instance found, attempting to send email")
             try:
-                self.telegram_bot.send_email(user_id, user_id, contact_info)
+                self.telegram_bot.send_email(user_id, contact_info)
                 self.write_log("Email sent successfully")
             except Exception as error:
                 self.logger.error(f"Error sending email: {str(error)}")
