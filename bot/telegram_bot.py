@@ -41,47 +41,15 @@ class TelegramBot:
         # Создаем директории, если они не существуют
         if not os.path.exists(self.emails_dir):
             os.makedirs(self.emails_dir)
-                
-        # Инициализируем базу данных
-        asyncio.create_task(self.db.init_db())
 
         # Создаем ChatGPTAssistant после инициализации всех необходимых атрибутов
         self.chatgpt_assistant = ChatGPTAssistant(telegram_bot=self)
 
-    def generate_unique_filename(self, directory, user_id, username, base_filename):
+    async def initialize(self):
         """
-        Генерирует имя файла для пользователя.
-
-        Parameters
-        ----------
-        directory : str
-            Путь к директории для сохранения файла.
-        user_id : int
-            Идентификатор пользователя.
-        username : str
-            Имя пользователя.
-        base_filename : str
-            Базовое имя файла.
-
-        Returns
-        -------
-        str
-            Имя файла для пользователя.
+        Асинхронная инициализация компонентов бота.
         """
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-        # Для email используем уникальные имена, для диалогов - постоянные
-        if directory == self.emails_dir:
-            count = 1
-            filename = f"{user_id}_{username}_{base_filename}"
-            while os.path.exists(os.path.join(directory, filename)):
-                filename = f"{user_id}_{username}_{base_filename}_{count}"
-                count += 1
-        else:
-            filename = f"{user_id}_{username}_{base_filename}"
-        
-        return filename
+        await self.db.init_db()
 
     def run(self):
         """
@@ -95,6 +63,9 @@ class TelegramBot:
         - text messages : Обработка текстовых сообщений
         """
         self.logger.info(Template("$action").substitute(action="Настройка телеграм-бота..."))
+        
+        # Инициализируем базу данных перед запуском бота
+        asyncio.get_event_loop().run_until_complete(self.initialize())
         
         self.application.add_handler(
             handler=CommandHandler(
@@ -457,3 +428,38 @@ class TelegramBot:
         msg.attach(html_part)
 
         self.send_smtp_message(msg)
+
+    def generate_unique_filename(self, directory, user_id, username, base_filename):
+        """
+        Генерирует имя файла для пользователя.
+
+        Parameters
+        ----------
+        directory : str
+            Путь к директории для сохранения файла.
+        user_id : int
+            Идентификатор пользователя.
+        username : str
+            Имя пользователя.
+        base_filename : str
+            Базовое имя файла.
+
+        Returns
+        -------
+        str
+            Имя файла для пользователя.
+        """
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        # Для email используем уникальные имена, для диалогов - постоянные
+        if directory == self.emails_dir:
+            count = 1
+            filename = f"{user_id}_{username}_{base_filename}"
+            while os.path.exists(os.path.join(directory, filename)):
+                filename = f"{user_id}_{username}_{base_filename}_{count}"
+                count += 1
+        else:
+            filename = f"{user_id}_{username}_{base_filename}"
+        
+        return filename
