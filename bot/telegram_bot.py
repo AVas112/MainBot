@@ -189,14 +189,14 @@ class TelegramBot:
                 .substitute(user_id=user_id, username=username, message=message_text[:50])
             )
 
-            thread_id = self.threads.get(user_id)
+            thread_id = self.threads.get(str(user_id))
             if thread_id is None:
                 self.logger.info(
                     Template("Создание нового потока для пользователя $user_id")
                     .substitute(user_id=user_id)
                 )
                 thread_id = self.chatgpt_assistant.create_thread(user_id=user_id)
-                self.threads[user_id] = thread_id
+                self.threads[str(user_id)] = thread_id
                 self.save_threads()
 
             try:
