@@ -1,9 +1,10 @@
 import aiosqlite
 import datetime
+import os
 from string import Template
 
 class Database:
-    def __init__(self, db_path: str = "dialogs.db"):
+    def __init__(self, db_path: str = "database/dialogs.db"):
         """
         Инициализация базы данных.
         
@@ -12,6 +13,8 @@ class Database:
         db_path : str
             Путь к файлу базы данных SQLite
         """
+        # Создаем директорию для базы данных, если её нет
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
         
     async def init_db(self):
