@@ -463,7 +463,7 @@ class TelegramBot:
         contact_info : dict
             Контактная информация пользователя.
         """
-        username = update.effective_user.username
+        username = update.effective_user.username or str(user_id)
         if not contact_info:
             self.logger.error("Отсутствует контактная информация для отправки письма")
             return
