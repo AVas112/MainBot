@@ -326,57 +326,6 @@ class TelegramBot:
             except (TypeError, ValueError) as e:
                 self.logger.error(Template("Ошибка сохранения потоков: $error").substitute(error=e))
 
-    def extract_contact_info(self, response):
-        """
-        Извлекает контактную информацию из ответа.
-
-        Parameters
-        ----------
-        response : str
-            Текст ответа для анализа.
-
-        Returns
-        -------
-        dict or None
-            Словарь с контактной информацией или None, если информация не найдена.
-        """
-        try:
-            name = None
-            phone = None
-            time = None
-            
-            lines = response.split('\n')
-            for i, line in enumerate(lines):
-                line = line.strip()
-                
-                if name is None and 'Андрей' in line:
-                    name = 'Андрей'
-                
-                if phone is None and any(x in line for x in ['89885454521', '8988', '89885']):
-                    phone = '89885454521'
-                
-                if time is None and 'завтра в 12' in line.lower():
-                    time = 'завтра в 12'
-            
-            if all(value is not None for value in [name, phone, time]):
-                contact_info = {
-                    'name': name,
-                    'phone_number': phone,
-                    'preferred_call_time': time
-                }
-                self.logger.info(Template("Найдена контактная информация: $info").substitute(info=contact_info))
-                return contact_info
-            
-            self.logger.info(
-                Template("Не удалось найти всю необходимую контактную информацию. Найдено: имя=$name, телефон=$phone, время=$time")
-                .substitute(name=name, phone=phone, time=time)
-            )
-            return None
-            
-        except ValueError as e:
-            self.logger.error(Template("Ошибка при извлечении контактной информации: $error").substitute(error=e))
-            return None
-
     def send_smtp_message(self, msg):
         """
         Отправляет сообщение через SMTP-сервер.
@@ -450,7 +399,7 @@ class TelegramBot:
         return ''.join(Template('<div class="message $css_class">$msg</div>').substitute(css_class=("user" if "User:" in msg else "assistant"), msg=msg) 
                       for msg in dialog_text)
 
-    def send_email(self, user_id, update: Update, contact_info=None):
+    def send_email(self, user_id: int, contact_info: dict = None):
         """
         Отправляет email с информацией о диалоге.
 
@@ -458,17 +407,20 @@ class TelegramBot:
         ----------
         user_id : int
             ID пользователя.
-        update : Update
-            Объект обновления от Telegram.
         contact_info : dict
-            Контактная информация пользователя.
+            Контактная информация пользователя от ChatGPT Assistant.
         """
-        username = update.effective_user.username or str(user_id)
         if not contact_info:
             self.logger.error("Отсутствует контактная информация для отправки письма")
             return
 
-        self.logger.info(Template("Начинаем отправку письма для user_id: $user_id, username: $username").substitute(user_id=user_id, username=username))
+        # Используем имя из contact_info или ID пользователя как fallback
+        username = contact_info.get('name', str(user_id))
+        
+        self.logger.info(Template("Начинаем отправку письма для user_id: $user_id, username: $username").substitute(
+            user_id=user_id, 
+            username=username
+        ))
         
         if not all([self.smtp_username, self.smtp_password]):
             self.logger.error("Отсутствуют SMTP-учетные данные в переменных окружения")
@@ -477,7 +429,7 @@ class TelegramBot:
         msg = MIMEMultipart('alternative')
         msg['From'] = self.smtp_username
         msg['To'] = 'da1212112@gmail.com'
-        msg['Subject'] = Template("Новый заказ от пользователя $user_id").substitute(user_id=user_id)
+        msg['Subject'] = Template("Новый заказ от пользователя $name").substitute(name=username)
 
         # Читаем диалог из файла
         dialog_filename = None
@@ -499,7 +451,7 @@ class TelegramBot:
         template = self.create_email_template()
         html_body = template.substitute(
             user_id=user_id,
-            username=f"@{username}" if username else "без username",
+            username=username,
             name=contact_info.get('name', ''),
             phone=contact_info.get('phone_number', ''),
             time=contact_info.get('preferred_call_time', ''),
