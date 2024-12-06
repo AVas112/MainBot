@@ -24,6 +24,7 @@ class TelegramBot:
         self.dialogs = {}  # Будет хранить список сообщений для каждого пользователя
         self.threads = self.load_threads()
         self.file_lock = asyncio.Lock()
+        self.usernames = {}  # Словарь для хранения username'ов пользователей
 
         # Email configuration
         self.smtp_server = os.getenv('SMTP_SERVER')
@@ -172,6 +173,9 @@ class TelegramBot:
             user_id = update.effective_user.id
             username = update.effective_user.username or str(user_id)
             message_text = update.message.text
+
+            # Сохраняем username пользователя
+            self.usernames[user_id] = username
 
             if self.dialogs.get(user_id) is None:
                 self.dialogs[user_id] = []
@@ -414,8 +418,8 @@ class TelegramBot:
             self.logger.error("Отсутствует контактная информация для отправки письма")
             return
 
-        # Используем имя из contact_info или ID пользователя как fallback
-        username = contact_info.get('name', str(user_id))
+        # Используем сохраненный telegram_username если он есть, иначе ID пользователя
+        username = f"@{self.usernames.get(user_id, str(user_id))}"
         
         self.logger.info(Template("Начинаем отправку письма для user_id: $user_id, username: $username").substitute(
             user_id=user_id, 
