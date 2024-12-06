@@ -352,7 +352,7 @@ class TelegramBot:
         return ''.join(Template('<div class="message $css_class">$msg</div>').substitute(css_class=("user" if "User:" in msg else "assistant"), msg=msg) 
                       for msg in dialog_text)
 
-    def send_email(self, user_id: int, contact_info: dict = None):
+    async def send_email(self, user_id: int, contact_info: dict = None):
         """
         Отправляет email с информацией о диалоге.
 
@@ -384,21 +384,8 @@ class TelegramBot:
         msg['To'] = 'da1212112@gmail.com'
         msg['Subject'] = Template("Новый заказ от пользователя $name").substitute(name=username)
 
-        # Читаем диалог из файла
-        dialog_filename = None
-        for filename in os.listdir(self.emails_dir):
-            if f"{user_id}_" in filename and filename.endswith('.html'):
-                dialog_filename = filename
-                break
-        
-        dialog_text = []
-        if dialog_filename:
-            with open(os.path.join(self.emails_dir, dialog_filename), 'r', encoding='utf-8') as f:
-                content = f.read()
-                # Извлекаем текст сообщений из HTML
-                import re
-                dialog_text = re.findall(r'<div class="message (?:user|assistant)">(.*?)</div>', content, re.DOTALL)
-        
+        # Получаем диалог из базы данных
+        dialog_text = await self.db.get_dialog(user_id)
         formatted_dialog = self.format_dialog(dialog_text)
         
         template = self.create_email_template()
