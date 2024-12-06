@@ -15,6 +15,7 @@ from telegram.ext import Application, CommandHandler, filters, MessageHandler
 
 # Локальные импорты
 from bot.chatgpt_assistant import ChatGPTAssistant
+from bot.database import Database
 
 class TelegramBot:
     def __init__(self):
@@ -25,6 +26,7 @@ class TelegramBot:
         self.threads = self.load_threads()
         self.file_lock = asyncio.Lock()
         self.usernames = {}  # Словарь для хранения username'ов пользователей
+        self.db = Database()  # Инициализация базы данных
 
         # Email configuration
         self.smtp_server = os.getenv('SMTP_SERVER')
@@ -34,13 +36,14 @@ class TelegramBot:
         self.notification_email = os.getenv('NOTIFICATION_EMAIL')
 
         # Установка директорий для диалогов и email сообщений
-        self.dialogs_dir = 'dialogs'
         self.emails_dir = 'emails'
         
         # Создаем директории, если они не существуют
-        for directory in [self.dialogs_dir, self.emails_dir]:
-            if not os.path.exists(directory):
-                os.makedirs(directory)
+        if not os.path.exists(self.emails_dir):
+            os.makedirs(self.emails_dir)
+                
+        # Инициализируем базу данных
+        asyncio.create_task(self.db.init_db())
 
         # Создаем ChatGPTAssistant после инициализации всех необходимых атрибутов
         self.chatgpt_assistant = ChatGPTAssistant(telegram_bot=self)
@@ -180,6 +183,14 @@ class TelegramBot:
             if self.dialogs.get(user_id) is None:
                 self.dialogs[user_id] = []
             
+            # Сохраняем сообщение пользователя в базу данных
+            await self.db.save_message(
+                user_id=user_id,
+                username=username,
+                message=message_text,
+                role='user'
+            )
+            
             self.dialogs[user_id].append(
                 Template("User: $message").substitute(message=message_text)
             )
@@ -214,17 +225,25 @@ class TelegramBot:
                     .substitute(user_id=user_id)
                 )
 
+                # Сохраняем ответ ассистента в базу данных
+                await self.db.save_message(
+                    user_id=user_id,
+                    username=username,
+                    message=response,
+                    role='assistant'
+                )
+
                 self.dialogs[user_id].append(
                     Template("ChatGPT: $response").substitute(response=response)
                 )
 
-                # Генерируем новое имя файла для каждого диалога
-                dialogs_filename = self.generate_unique_filename(
-                    directory=self.dialogs_dir,
-                    user_id=user_id,
-                    username=username,
-                    base_filename="dialogs.html"
-                )
+                # Получаем диалог из базы данных
+                dialog_lines = await self.db.get_dialog(user_id)
+
+                # Генерируем HTML для диалога
+                html_content = self.db.format_dialog_html(dialog_lines, username)
+
+                # Сохраняем HTML в файл для email
                 emails_filename = self.generate_unique_filename(
                     directory=self.emails_dir,
                     user_id=user_id,
@@ -232,12 +251,9 @@ class TelegramBot:
                     base_filename="email.html"
                 )
 
-                # Сохраняем диалог
-                await self.save_dialogs(
-                    filename=dialogs_filename,
-                    dialog_lines=self.dialogs[user_id],
-                    username=username
-                )
+                async with self.file_lock:
+                    async with aiofiles.open(os.path.join(self.emails_dir, emails_filename), "w", encoding='utf-8') as file:
+                        await file.write(html_content)
 
                 await update.message.reply_text(text=response)
                 
@@ -256,44 +272,6 @@ class TelegramBot:
                 text=Template("Произошла ошибка при обработке вашего сообщения: $error")
                 .substitute(error=str(e))
             )
-
-    async def save_dialogs(self, filename, dialog_lines, username):
-        """
-        Сохраняет диалог в HTML файл.
-
-        Parameters
-        ----------
-        filename : str
-            Имя файла для сохранения диалога.
-        dialog_lines : list
-            Список строк диалога.
-        username : str
-            Имя пользователя для отображения в заголовке.
-        """
-        file_path = os.path.join(self.dialogs_dir, filename)
-        
-        # Создаем HTML контент
-        html_content = '<!DOCTYPE html>\n<html>\n<head>\n'
-        html_content += '<meta charset="UTF-8">\n'
-        html_content += Template('<title>Dialog with $username</title>\n').substitute(username=username)
-        html_content += '<style>\n'
-        html_content += 'body { font-family: Arial, sans-serif; margin: 20px; }\n'
-        html_content += '.message { margin: 10px 0; }\n'
-        html_content += '.user { color: blue; }\n'
-        html_content += '.assistant { color: green; }\n'
-        html_content += '</style>\n</head>\n<body>\n'
-        
-        # Добавляем каждое сообщение с соответствующим форматированием
-        for line in dialog_lines:
-            css_class = 'user' if line.startswith('User:') else 'assistant'
-            html_content += Template('<div class="message $css_class">$line</div>\n').substitute(css_class=css_class, line=line)
-        
-        html_content += '</body></html>'
-
-        # Сохраняем файл с использованием блокировки
-        async with self.file_lock:
-            async with aiofiles.open(file_path, "w", encoding='utf-8') as file:
-                await file.write(html_content)
 
     def load_threads(self):
         """
@@ -437,14 +415,14 @@ class TelegramBot:
 
         # Читаем диалог из файла
         dialog_filename = None
-        for filename in os.listdir(self.dialogs_dir):
+        for filename in os.listdir(self.emails_dir):
             if f"{user_id}_" in filename and filename.endswith('.html'):
                 dialog_filename = filename
                 break
         
         dialog_text = []
         if dialog_filename:
-            with open(os.path.join(self.dialogs_dir, dialog_filename), 'r', encoding='utf-8') as f:
+            with open(os.path.join(self.emails_dir, dialog_filename), 'r', encoding='utf-8') as f:
                 content = f.read()
                 # Извлекаем текст сообщений из HTML
                 import re
