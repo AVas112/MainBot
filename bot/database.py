@@ -34,7 +34,6 @@ class Database:
                 )
             ''')
 
-            # Создаем таблицу для успешных диалогов
             await db.execute('''
                 CREATE TABLE IF NOT EXISTS successful_dialogs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,6 +44,7 @@ class Database:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
+
             await db.commit()
             
     async def save_message(self, user_id: int, username: str, message: str, role: str):

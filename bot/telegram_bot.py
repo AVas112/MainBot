@@ -381,8 +381,8 @@ class TelegramBot:
 
         # Получаем диалог из базы данных
         dialog_text = await self.db.get_dialog(user_id)
-
-        # Сохраняем успешный диалог в базу данных до формирования HTML
+        
+        # Сохраняем успешный диалог в базу данных после получения всех данных
         try:
             await self.db.save_successful_dialog(
                 user_id=user_id,
@@ -394,8 +394,7 @@ class TelegramBot:
         except Exception as e:
             self.logger.error(f"Ошибка при сохранении диалога в базу данных: {str(e)}")
 
-        # Формируем HTML для email
-        formatted_dialog = self.format_dialog(dialog_text)
+        # Формируем email
         msg = MIMEMultipart('alternative')
         msg['From'] = self.smtp_username
         msg['To'] = 'da1212112@gmail.com'
@@ -408,7 +407,7 @@ class TelegramBot:
             name=contact_info.get('name', ''),
             phone=contact_info.get('phone_number', ''),
             time=contact_info.get('preferred_call_time', ''),
-            dialog=formatted_dialog
+            dialog=self.format_dialog(dialog_text)
         )
 
         text_part = MIMEText(html_body.replace('<br>', '\n'), 'plain')
