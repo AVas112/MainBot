@@ -35,13 +35,6 @@ class TelegramBot:
         self.smtp_password = os.getenv('SMTP_PASSWORD')
         self.notification_email = os.getenv('NOTIFICATION_EMAIL')
 
-        # Установка директорий для диалогов и email сообщений
-        self.emails_dir = 'emails'
-        
-        # Создаем директории, если они не существуют
-        if not os.path.exists(self.emails_dir):
-            os.makedirs(self.emails_dir)
-
         # Создаем ChatGPTAssistant после инициализации всех необходимых атрибутов
         self.chatgpt_assistant = ChatGPTAssistant(telegram_bot=self)
 
@@ -207,24 +200,6 @@ class TelegramBot:
                 self.dialogs[user_id].append(
                     Template("ChatGPT: $response").substitute(response=response)
                 )
-
-                # Получаем диалог из базы данных
-                dialog_lines = await self.db.get_dialog(user_id)
-
-                # Генерируем HTML для диалога
-                html_content = self.db.format_dialog_html(dialog_lines, username)
-
-                # Сохраняем HTML в файл для email
-                emails_filename = self.generate_unique_filename(
-                    directory=self.emails_dir,
-                    user_id=user_id,
-                    username=username,
-                    base_filename="email.html"
-                )
-
-                async with self.file_lock:
-                    async with aiofiles.open(os.path.join(self.emails_dir, emails_filename), "w", encoding='utf-8') as file:
-                        await file.write(html_content)
 
                 await update.message.reply_text(text=response)
                 
@@ -416,38 +391,3 @@ class TelegramBot:
         msg.attach(html_part)
 
         self.send_smtp_message(msg)
-
-    def generate_unique_filename(self, directory, user_id, username, base_filename):
-        """
-        Генерирует имя файла для пользователя.
-
-        Parameters
-        ----------
-        directory : str
-            Путь к директории для сохранения файла.
-        user_id : int
-            Идентификатор пользователя.
-        username : str
-            Имя пользователя.
-        base_filename : str
-            Базовое имя файла.
-
-        Returns
-        -------
-        str
-            Имя файла для пользователя.
-        """
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-        # Для email используем уникальные имена, для диалогов - постоянные
-        if directory == self.emails_dir:
-            count = 1
-            filename = f"{user_id}_{username}_{base_filename}"
-            while os.path.exists(os.path.join(directory, filename)):
-                filename = f"{user_id}_{username}_{base_filename}_{count}"
-                count += 1
-        else:
-            filename = f"{user_id}_{username}_{base_filename}"
-        
-        return filename
