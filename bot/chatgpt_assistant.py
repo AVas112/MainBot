@@ -11,8 +11,6 @@ from typing import Any, Dict, Optional, TypedDict
 from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
 
-from bot.contact_handler import ContactHandler
-
 
 class ToolOutput(TypedDict):
     """
@@ -48,8 +46,6 @@ class ChatGPTAssistant:
         Идентификатор ассистента OpenAI.
     logger : logging.Logger
         Логгер для записи информации о работе ассистента.
-    contact_handler : ContactHandler
-        Обработчик контактной информации.
     telegram_bot : Optional[Any]
         Экземпляр телеграм бота.
     _log_template : Template
@@ -81,7 +77,6 @@ class ChatGPTAssistant:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
         
         self.logger = logging.getLogger(__name__)
-        self.contact_handler = ContactHandler()
         self.telegram_bot = telegram_bot
         self._log_template = Template("$message")
 
@@ -326,12 +321,6 @@ class ChatGPTAssistant:
         contact_info : Dict[str, Any]
             Информация о контакте.
         """
-        await self.contact_handler.store_contact_info(
-            username=user_id,
-            thread_id=thread_id,
-            contact_info=contact_info
-        )
-
         if self.telegram_bot is not None:
             self.write_log("TelegramBot instance found, attempting to send email")
             try:
