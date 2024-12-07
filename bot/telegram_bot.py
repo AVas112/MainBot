@@ -354,7 +354,7 @@ class TelegramBot:
 
     async def send_email(self, user_id: int, contact_info: dict = None):
         """
-        Отправляет email с информацией о диалоге.
+        Отправляет email с информацией о диалоге и сохраняет успешный диалог в базу данных.
 
         Parameters
         ----------
@@ -379,14 +379,27 @@ class TelegramBot:
             self.logger.error("Отсутствуют SMTP-учетные данные в переменных окружения")
             return
 
+        # Получаем диалог из базы данных
+        dialog_text = await self.db.get_dialog(user_id)
+
+        # Сохраняем успешный диалог в базу данных до формирования HTML
+        try:
+            await self.db.save_successful_dialog(
+                user_id=user_id,
+                username=username,
+                contact_info=contact_info,
+                messages=dialog_text
+            )
+            self.logger.info(f"Успешный диалог сохранен в базу данных для пользователя {username}")
+        except Exception as e:
+            self.logger.error(f"Ошибка при сохранении диалога в базу данных: {str(e)}")
+
+        # Формируем HTML для email
+        formatted_dialog = self.format_dialog(dialog_text)
         msg = MIMEMultipart('alternative')
         msg['From'] = self.smtp_username
         msg['To'] = 'da1212112@gmail.com'
         msg['Subject'] = Template("Новый заказ от пользователя $name").substitute(name=username)
-
-        # Получаем диалог из базы данных
-        dialog_text = await self.db.get_dialog(user_id)
-        formatted_dialog = self.format_dialog(dialog_text)
         
         template = self.create_email_template()
         html_body = template.substitute(
@@ -397,17 +410,6 @@ class TelegramBot:
             time=contact_info.get('preferred_call_time', ''),
             dialog=formatted_dialog
         )
-
-        # Сохраняем email сообщение в файл
-        email_filename = self.generate_unique_filename(
-            directory=self.emails_dir,
-            user_id=user_id,
-            username=username,
-            base_filename="email.html"
-        )
-        
-        with open(os.path.join(self.emails_dir, email_filename), 'w', encoding='utf-8') as f:
-            f.write(html_body)
 
         text_part = MIMEText(html_body.replace('<br>', '\n'), 'plain')
         html_part = MIMEText(html_body, 'html')
