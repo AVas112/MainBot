@@ -1,6 +1,7 @@
 import aiosqlite
 import datetime
 import os
+import json
 from string import Template
 
 class Database:
@@ -30,6 +31,18 @@ class Database:
                     message TEXT NOT NULL,
                     role TEXT NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+
+            # Создаем таблицу для успешных диалогов
+            await db.execute('''
+                CREATE TABLE IF NOT EXISTS successful_dialogs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    username TEXT NOT NULL,
+                    contact_info TEXT NOT NULL,
+                    messages TEXT NOT NULL,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             ''')
             await db.commit()
@@ -81,6 +94,38 @@ class Database:
                     for message, role in messages
                 ]
                 
+    async def save_successful_dialog(self, user_id: int, username: str, contact_info: dict, messages: list) -> int:
+        """
+        Сохраняет успешный диалог в базу данных.
+
+        Parameters
+        ----------
+        user_id : int
+            ID пользователя
+        username : str
+            Имя пользователя
+        contact_info : dict
+            Контактная информация пользователя
+        messages : list
+            Список сообщений диалога
+
+        Returns
+        -------
+        int
+            ID созданной записи
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                '''
+                INSERT INTO successful_dialogs 
+                (user_id, username, contact_info, messages)
+                VALUES (?, ?, ?, ?)
+                ''',
+                (user_id, username, json.dumps(contact_info), json.dumps(messages))
+            )
+            await db.commit()
+            return cursor.lastrowid
+
     def format_dialog_html(self, dialog_lines: list, username: str) -> str:
         """
         Форматирование диалога в HTML.
