@@ -23,6 +23,7 @@ class Database:
         Инициализация базы данных и создание необходимых таблиц.
         """
         async with aiosqlite.connect(self.db_path) as db:
+            # Таблица для хранения всех сообщений диалога
             await db.execute('''
                 CREATE TABLE IF NOT EXISTS dialogs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,6 +35,7 @@ class Database:
                 )
             ''')
 
+            # Таблица для хранения успешно завершенных диалогов с контактной информацией
             await db.execute('''
                 CREATE TABLE IF NOT EXISTS successful_dialogs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
