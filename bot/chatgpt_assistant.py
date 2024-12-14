@@ -362,6 +362,8 @@ class ChatGPTAssistant:
         if assistant_message is not None and assistant_message.content:
             response = assistant_message.content[0].text.value
             self.write_log(f"Got response: {response[:50]}...")
-            return re.sub(r"【.*?】", "", response)
+            # Удаляем специальные маркеры и двойные звездочки
+            response = re.sub(r"【.*?】|\*\*", "", response)
+            return response
         
         return "Извините, не удалось получить ответ. Пожалуйста, попробуйте еще раз."
