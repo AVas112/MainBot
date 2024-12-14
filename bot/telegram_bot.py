@@ -97,7 +97,7 @@ class TelegramBot:
         self.logger.info(Template("Пользователь $user_id запустил бота").substitute(user_id=user_id))
         await update.message.reply_text(
             text=Template("$greeting").substitute(
-                greeting="Привет. Я консультант компании КлинингУМамы. Чем я могу вам помочь?"
+                greeting="Добрый день, на связи Коливинг. Для дальнейшего диалога расскажите коротко о себе."
             )
         )
 
