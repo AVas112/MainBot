@@ -11,8 +11,6 @@ from typing import Any, Dict, Optional, TypedDict
 from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
 
-from bot.contact_handler import ContactHandler
-
 
 class ToolOutput(TypedDict):
     """
@@ -48,8 +46,6 @@ class ChatGPTAssistant:
         Идентификатор ассистента OpenAI.
     logger : logging.Logger
         Логгер для записи информации о работе ассистента.
-    contact_handler : ContactHandler
-        Обработчик контактной информации.
     telegram_bot : Optional[Any]
         Экземпляр телеграм бота.
     _log_template : Template
@@ -81,7 +77,6 @@ class ChatGPTAssistant:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
         
         self.logger = logging.getLogger(__name__)
-        self.contact_handler = ContactHandler()
         self.telegram_bot = telegram_bot
         self._log_template = Template("$message")
 
@@ -171,18 +166,13 @@ class ChatGPTAssistant:
         -------
         str
             Ответ ассистента.
-
-        Raises
-        ------
-        OpenAIError
-            При ошибках в API OpenAI.
         """
         try:
             self.write_log(f"Getting response for message: {user_message[:50]}...")
             self.add_user_message(thread_id=thread_id, message=user_message)
             
             run = self.create_run(thread_id=thread_id)
-            return await self.process_run(run=run, thread_id=thread_id, user_id=user_id)
+            return await self.process_run(run=run, thread_id=thread_id, user_id=user_id, retry_count=0)
 
         except OpenAIError as error:
             error_message = f"OpenAI API error: {str(error)}"
@@ -194,7 +184,7 @@ class ChatGPTAssistant:
             self.logger.error(error_message)
             raise
 
-    async def process_run(self, run: Run, thread_id: str, user_id: str) -> str:
+    async def process_run(self, run: Run, thread_id: str, user_id: str, retry_count: int = 0) -> str:
         """
         Обрабатывает запуск для получения ответа от ассистента.
 
@@ -206,12 +196,16 @@ class ChatGPTAssistant:
             Идентификатор потока.
         user_id : str
             Идентификатор пользователя.
+        retry_count : int
+            Текущее количество попыток повторной отправки.
 
         Returns
         -------
         str
             Ответ ассистента.
         """
+        max_retries = 3  # Максимальное количество попыток
+        
         while True:
             run = self.client.beta.threads.runs.retrieve(
                 thread_id=thread_id,
@@ -226,7 +220,15 @@ class ChatGPTAssistant:
                 return await self.get_assistant_response(thread_id=thread_id)
 
             if run.status in ["failed", "cancelled", "expired"]:
-                raise ValueError(f"Run failed with status: {run.status}")
+                self.logger.warning(f"Run failed for user {user_id} with status: {run.status}. Attempt {retry_count + 1} of {max_retries}")
+                
+                if retry_count < max_retries:
+                    # Создаем новый run для повторной попытки
+                    new_run = self.create_run(thread_id)
+                    return await self.process_run(new_run, thread_id, user_id, retry_count + 1)
+                else:
+                    self.logger.error(f"Max retries ({max_retries}) reached for user {user_id}")
+                    return await self.get_assistant_response(thread_id=thread_id)
 
             await asyncio.sleep(1)
 
@@ -326,16 +328,10 @@ class ChatGPTAssistant:
         contact_info : Dict[str, Any]
             Информация о контакте.
         """
-        await self.contact_handler.store_contact_info(
-            username=user_id,
-            thread_id=thread_id,
-            contact_info=contact_info
-        )
-
         if self.telegram_bot is not None:
             self.write_log("TelegramBot instance found, attempting to send email")
             try:
-                self.telegram_bot.send_email(int(user_id), contact_info)
+                await self.telegram_bot.send_email(int(user_id), contact_info)
                 self.write_log("Email sent successfully")
             except Exception as error:
                 self.logger.error(f"Error sending email: {str(error)}")
@@ -368,4 +364,4 @@ class ChatGPTAssistant:
             self.write_log(f"Got response: {response[:50]}...")
             return re.sub(r"【.*?】", "", response)
         
-        raise ValueError("No assistant response found")
+        return "Извините, не удалось получить ответ. Пожалуйста, попробуйте еще раз."

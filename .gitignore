@@ -53,3 +53,9 @@ htmlcov/
 .cache
 coverage.xml
 *.cover
+
+# Database files
+database/
+*.db
+*.sqlite
+*.sqlite3
