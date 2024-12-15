@@ -362,8 +362,17 @@ class ChatGPTAssistant:
         if assistant_message is not None and assistant_message.content:
             response = assistant_message.content[0].text.value
             self.write_log(f"Got response: {response[:50]}...")
+            
             # Удаляем специальные маркеры и двойные звездочки
             response = re.sub(r"【.*?】|\*\*", "", response)
+            
+            # Преобразуем Markdown-ссылки в HTML-формат для Telegram
+            response = re.sub(
+                r"\[([^\]]+)\]\(([^\)]+)\)",
+                r'<a href="\2">\1</a>',
+                response
+            )
+            
             return response
         
         return "Извините, не удалось получить ответ. Пожалуйста, попробуйте еще раз."

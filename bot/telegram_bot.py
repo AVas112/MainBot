@@ -201,7 +201,10 @@ class TelegramBot:
                     Template("ChatGPT: $response").substitute(response=response)
                 )
 
-                await update.message.reply_text(text=response)
+                await update.message.reply_text(
+                    text=response,
+                    parse_mode='HTML'
+                )
                 
             except Exception as e:
                 error_msg = Template("Ошибка при получении ответа от ChatGPT: $error").substitute(error=str(e))
