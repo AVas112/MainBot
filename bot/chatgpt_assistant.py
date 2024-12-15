@@ -363,8 +363,11 @@ class ChatGPTAssistant:
             response = assistant_message.content[0].text.value
             self.write_log(f"Got response: {response[:50]}...")
             
-            # Удаляем специальные маркеры и двойные звездочки
-            response = re.sub(r"【.*?】|\*\*", "", response)
+            # Удаляем специальные маркеры
+            response = re.sub(r"【.*?】", "", response)
+            
+            # Преобразуем двойные звездочки в HTML-теги для жирного текста
+            response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", response)
             
             # Преобразуем Markdown-ссылки в HTML-формат для Telegram
             response = re.sub(
