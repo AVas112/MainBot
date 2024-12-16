@@ -362,6 +362,20 @@ class ChatGPTAssistant:
         if assistant_message is not None and assistant_message.content:
             response = assistant_message.content[0].text.value
             self.write_log(f"Got response: {response[:50]}...")
-            return re.sub(r"【.*?】", "", response)
+            
+            # Удаляем специальные маркеры
+            response = re.sub(r"【.*?】", "", response)
+            
+            # Преобразуем двойные звездочки в HTML-теги для жирного текста
+            response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", response)
+            
+            # Преобразуем Markdown-ссылки в HTML-формат для Telegram
+            response = re.sub(
+                r"\[([^\]]+)\]\(([^\)]+)\)",
+                r'<a href="\2">\1</a>',
+                response
+            )
+            
+            return response
         
         return "Извините, не удалось получить ответ. Пожалуйста, попробуйте еще раз."
