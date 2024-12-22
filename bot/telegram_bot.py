@@ -268,7 +268,7 @@ class TelegramBot:
             except (TypeError, ValueError) as e:
                 self.logger.error(Template("Ошибка сохранения потоков: $error").substitute(error=e))
 
-    def send_smtp_message(self, msg):
+    async def send_smtp_message(self, msg):
         """
         Отправляет сообщение через SMTP-сервер.
 
@@ -278,13 +278,19 @@ class TelegramBot:
             Подготовленное сообщение.
         """
         try:
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
-                server.send_message(msg)
+            async with asyncio.Lock():  # Защищаем отправку email
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, lambda: self._send_email(msg))
                 self.logger.info("Email sent successfully")
-        except smtplib.SMTPException as e:
-            self.logger.error(Template("Ошибка при отправке письма: $error").substitute(error=e))
+        except Exception as e:
+            self.logger.error(f"Ошибка при отправке письма: {str(e)}")
+            
+    def _send_email(self, msg):
+        """Внутренний метод для отправки email через SMTP"""
+        with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+            server.starttls()
+            server.login(self.smtp_username, self.smtp_password)
+            server.send_message(msg)
 
     def create_email_template(self):
         """
@@ -404,4 +410,4 @@ class TelegramBot:
         msg.attach(text_part)
         msg.attach(html_part)
 
-        self.send_smtp_message(msg)
+        await self.send_smtp_message(msg)

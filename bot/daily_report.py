@@ -140,29 +140,22 @@ class DailyReport:
             if self.bot:
                 await self.bot.send_smtp_message(msg)
             else:
-                self.send_smtp_message(msg)
+                # Создаем временный event loop для отправки email если нет бота
+                loop = asyncio.get_event_loop()
+                await loop.run_in_executor(None, lambda: self._send_email(msg))
                 
             logger.info("Ежедневный отчет успешно отправлен")
             
         except Exception as e:
             logger.error(f"Ошибка при отправке ежедневного отчета: {str(e)}")
 
-    def send_smtp_message(self, msg):
-        """
-        Отправляет сообщение через SMTP-сервер.
-        Используется только если не передан экземпляр TelegramBot.
-        
-        Parameters
-        ----------
-        msg : MIMEMultipart
-            Подготовленное сообщение.
-        """
+    def _send_email(self, msg):
+        """Внутренний метод для отправки email через SMTP"""
         try:
             with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
                 server.starttls()
                 server.login(self.smtp_username, self.smtp_password)
                 server.send_message(msg)
-                logger.info("Email sent successfully")
         except Exception as e:
             logger.error(f"Ошибка при отправке письма: {str(e)}")
 
