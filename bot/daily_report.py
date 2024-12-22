@@ -174,13 +174,18 @@ class DailyReport:
         hour = hour or int(os.getenv('REPORT_HOUR', '6'))
         minute = minute or int(os.getenv('REPORT_MINUTE', '0'))
         
+        # Добавляем задачу в планировщик
         self.scheduler.add_job(
             self.send_daily_report,
             CronTrigger(hour=hour, minute=minute),
             id='daily_report',
             replace_existing=True
         )
-        self.scheduler.start()
+        
+        # Запускаем планировщик только если он еще не запущен
+        if not self.scheduler.running:
+            self.scheduler.start()
+            
         logger.info(f"Планировщик настроен на отправку отчета в {hour:02d}:{minute:02d}")
 
     async def main(self):
