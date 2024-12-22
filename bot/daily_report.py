@@ -80,6 +80,10 @@ class DailyReport:
                     report += self._format_user_dialog(current_user, username, user_messages)
                 current_user = user_id
                 user_messages = []
+            
+            # Преобразуем timestamp в объект datetime, если это строка
+            if isinstance(timestamp, str):
+                timestamp = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
                 
             user_messages.append({
                 'role': role,
