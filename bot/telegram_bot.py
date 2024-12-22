@@ -49,8 +49,7 @@ class TelegramBot:
         await self.db.init_db()
         # Инициализируем планировщик отчетов
         self.daily_report = DailyReport(telegram_bot=self)
-        # Запускаем планировщик отчетов
-        self.daily_report.schedule_daily_report()
+        # Запускаем планировщик отчетов и отправляем тестовый отчет
         await self.daily_report.main()
 
     def run(self):

@@ -199,13 +199,6 @@ class DailyReport:
         
         # Настройка времени отправки отчета (6:00 утра)
         self.schedule_daily_report()
-        
-        try:
-            # Держим процесс работающим
-            while True:
-                await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            self.scheduler.shutdown()
 
 if __name__ == "__main__":
     logging.basicConfig(
