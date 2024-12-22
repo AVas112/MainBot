@@ -16,6 +16,7 @@ from telegram.ext import Application, CommandHandler, filters, MessageHandler
 # Локальные импорты
 from bot.chatgpt_assistant import ChatGPTAssistant
 from bot.database import Database
+from bot.daily_report import DailyReport
 
 class TelegramBot:
     def __init__(self):
@@ -37,12 +38,18 @@ class TelegramBot:
 
         # Создаем ChatGPTAssistant после инициализации всех необходимых атрибутов
         self.chatgpt_assistant = ChatGPTAssistant(telegram_bot=self)
+        
+        # Инициализируем планировщик отчетов
+        self.daily_report = None
 
     async def initialize(self):
         """
         Асинхронная инициализация компонентов бота.
         """
         await self.db.init_db()
+        # Инициализируем планировщик отчетов
+        self.daily_report = DailyReport(telegram_bot=self)
+        await self.daily_report.main()
 
     def run(self):
         """
@@ -57,8 +64,10 @@ class TelegramBot:
         """
         self.logger.info(Template("$action").substitute(action="Настройка телеграм-бота..."))
         
-        # Инициализируем базу данных перед запуском бота
-        asyncio.get_event_loop().run_until_complete(self.initialize())
+        # Инициализируем базу данных и планировщик перед запуском бота
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(self.initialize())
         
         self.application.add_handler(
             handler=CommandHandler(

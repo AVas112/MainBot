@@ -6,16 +6,23 @@ from email.mime.multipart import MIMEMultipart
 import os
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from database import Database
-from telegram_bot import TelegramBot
+from bot.database import Database
+from bot.telegram_bot import TelegramBot
 
 logger = logging.getLogger(__name__)
 
 class DailyReport:
-    def __init__(self):
-        """Инициализация компонентов для ежедневного отчета"""
+    def __init__(self, telegram_bot=None):
+        """
+        Инициализация компонентов для ежедневного отчета
+        
+        Parameters
+        ----------
+        telegram_bot : TelegramBot, optional
+            Существующий экземпляр TelegramBot
+        """
         self.db = Database()
-        self.bot = TelegramBot()
+        self.bot = telegram_bot or TelegramBot()
         self.scheduler = AsyncIOScheduler()
         
     async def get_daily_dialogs(self) -> list:
@@ -28,14 +35,13 @@ class DailyReport:
             Список диалогов с информацией о пользователях
         """
         yesterday = datetime.now() - timedelta(days=1)
-        async with self.db as db:
-            query = '''
-                SELECT d.user_id, d.username, d.message, d.role, d.timestamp 
-                FROM dialogs d 
-                WHERE d.timestamp >= ?
-                ORDER BY d.user_id, d.timestamp
-            '''
-            return await db.execute_fetch(query, (yesterday.strftime('%Y-%m-%d %H:%M:%S'),))
+        query = '''
+            SELECT d.user_id, d.username, d.message, d.role, d.timestamp 
+            FROM dialogs d 
+            WHERE d.timestamp >= ?
+            ORDER BY d.user_id, d.timestamp
+        '''
+        return await self.db.execute_fetch(query, (yesterday.strftime('%Y-%m-%d %H:%M:%S'),))
 
     def format_report(self, dialogs: list) -> str:
         """
@@ -125,17 +131,21 @@ class DailyReport:
         except Exception as e:
             logger.error(f"Ошибка при отправке ежедневного отчета: {str(e)}")
 
-    def schedule_daily_report(self, hour: int = 6, minute: int = 0):
+    def schedule_daily_report(self, hour: int = None, minute: int = None):
         """
         Настройка расписания отправки отчета
         
         Parameters
         ----------
-        hour : int
-            Час отправки (по умолчанию 6)
-        minute : int
-            Минута отправки (по умолчанию 0)
+        hour : int, optional
+            Час отправки (по умолчанию из REPORT_HOUR в .env или 6)
+        minute : int, optional
+            Минута отправки (по умолчанию из REPORT_MINUTE в .env или 0)
         """
+        # Получаем значения из переменных окружения или используем значения по умолчанию
+        hour = hour or int(os.getenv('REPORT_HOUR', '6'))
+        minute = minute or int(os.getenv('REPORT_MINUTE', '0'))
+        
         self.scheduler.add_job(
             self.send_daily_report,
             CronTrigger(hour=hour, minute=minute),
@@ -145,24 +155,28 @@ class DailyReport:
         self.scheduler.start()
         logger.info(f"Планировщик настроен на отправку отчета в {hour:02d}:{minute:02d}")
 
-async def main():
-    """Основная функция для запуска планировщика"""
-    report = DailyReport()
-    # Инициализация базы данных
-    await report.db.init_db()
-    # Настройка времени отправки отчета (6:00 утра)
-    report.schedule_daily_report()
-    
-    try:
-        # Держим процесс работающим
-        while True:
-            await asyncio.sleep(1)
-    except KeyboardInterrupt:
-        report.scheduler.shutdown()
+    async def main(self):
+        """Основная функция для запуска планировщика"""
+        # Инициализация базы данных
+        await self.db.init_db()
+        
+        # Для тестирования отправим отчет сразу
+        logger.info("Отправка тестового отчета...")
+        await self.send_daily_report()
+        
+        # Настройка времени отправки отчета (6:00 утра)
+        self.schedule_daily_report()
+        
+        try:
+            # Держим процесс работающим
+            while True:
+                await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            self.scheduler.shutdown()
 
 if __name__ == "__main__":
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    asyncio.run(main())
+    asyncio.run(DailyReport().main())
