@@ -4,10 +4,10 @@ from datetime import datetime, timedelta
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
+import smtplib
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from bot.database import Database
-from bot.telegram_bot import TelegramBot
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +22,17 @@ class DailyReport:
             Существующий экземпляр TelegramBot
         """
         self.db = Database()
-        self.bot = telegram_bot or TelegramBot()
+        self.bot = telegram_bot
         self.scheduler = AsyncIOScheduler()
         
+        # Если бот не передан, инициализируем базовые SMTP настройки
+        if not telegram_bot:
+            self.smtp_server = os.getenv('SMTP_SERVER')
+            self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
+            self.smtp_username = os.getenv('SMTP_USERNAME')
+            self.smtp_password = os.getenv('SMTP_PASSWORD')
+            self.notification_email = os.getenv('NOTIFICATION_EMAIL')
+            
     async def get_daily_dialogs(self) -> list:
         """
         Получение диалогов за последние 24 часа
@@ -120,16 +128,39 @@ class DailyReport:
             
             msg = MIMEMultipart()
             msg['Subject'] = f'Ежедневный отчет по диалогам {datetime.now().strftime("%Y-%m-%d")}'
-            msg['From'] = os.getenv('SMTP_USERNAME')
-            msg['To'] = os.getenv('NOTIFICATION_EMAIL')
+            msg['From'] = self.smtp_username if not self.bot else self.bot.smtp_username
+            msg['To'] = self.notification_email if not self.bot else self.bot.notification_email
             
             msg.attach(MIMEText(report_html, 'html'))
             
-            await self.bot.send_smtp_message(msg)
+            if self.bot:
+                await self.bot.send_smtp_message(msg)
+            else:
+                self.send_smtp_message(msg)
+                
             logger.info("Ежедневный отчет успешно отправлен")
             
         except Exception as e:
             logger.error(f"Ошибка при отправке ежедневного отчета: {str(e)}")
+
+    def send_smtp_message(self, msg):
+        """
+        Отправляет сообщение через SMTP-сервер.
+        Используется только если не передан экземпляр TelegramBot.
+        
+        Parameters
+        ----------
+        msg : MIMEMultipart
+            Подготовленное сообщение.
+        """
+        try:
+            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_username, self.smtp_password)
+                server.send_message(msg)
+                logger.info("Email sent successfully")
+        except Exception as e:
+            logger.error(f"Ошибка при отправке письма: {str(e)}")
 
     def schedule_daily_report(self, hour: int = None, minute: int = None):
         """

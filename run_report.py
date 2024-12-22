@@ -19,4 +19,6 @@ if __name__ == "__main__":
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         encoding='utf-8'
     )
-    asyncio.run(DailyReport().main())
+    # Создаем экземпляр DailyReport без бота для автономной работы
+    report = DailyReport()
+    asyncio.run(report.main())
