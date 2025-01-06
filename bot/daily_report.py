@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import os
@@ -8,6 +8,7 @@ import smtplib
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from bot.database import Database
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)
 
@@ -42,14 +43,23 @@ class DailyReport:
         list
             Список диалогов с информацией о пользователях
         """
-        yesterday = datetime.now() - timedelta(days=1)
+        # Получаем текущее время в московской временной зоне
+        moscow_tz = ZoneInfo("Europe/Moscow")
+        now = datetime.now(moscow_tz)
+        
+        # Вычисляем время 24 часа назад
+        yesterday = now - timedelta(days=1)
+        
+        # Конвертируем в UTC для запроса к базе данных
+        yesterday_utc = yesterday.astimezone(timezone.utc)
+        
         query = '''
             SELECT d.user_id, d.username, d.message, d.role, d.timestamp 
             FROM dialogs d 
             WHERE d.timestamp >= ?
             ORDER BY d.user_id, d.timestamp
         '''
-        return await self.db.execute_fetch(query, (yesterday.strftime('%Y-%m-%d %H:%M:%S'),))
+        return await self.db.execute_fetch(query, (yesterday_utc.strftime('%Y-%m-%d %H:%M:%S'),))
 
     def format_report(self, dialogs: list) -> str:
         """
@@ -71,13 +81,18 @@ class DailyReport:
         report = "<h2>Отчет по диалогам за последние 24 часа</h2>"
         current_user = None
         user_messages = []
+        usernames = {}  # Словарь для хранения имен пользователей
         
         for dialog in dialogs:
             user_id, username, message, role, timestamp = dialog
             
+            # Сохраняем username при первом появлении пользователя
+            if user_id not in usernames:
+                usernames[user_id] = username
+            
             if current_user != user_id:
                 if user_messages:
-                    report += self._format_user_dialog(current_user, username, user_messages)
+                    report += self._format_user_dialog(current_user, usernames[current_user], user_messages)
                 current_user = user_id
                 user_messages = []
             
@@ -92,7 +107,7 @@ class DailyReport:
             })
             
         if user_messages:
-            report += self._format_user_dialog(current_user, username, user_messages)
+            report += self._format_user_dialog(current_user, usernames[current_user], user_messages)
             
         return report
 
@@ -174,10 +189,10 @@ class DailyReport:
         hour = hour or int(os.getenv('REPORT_HOUR', '6'))
         minute = minute or int(os.getenv('REPORT_MINUTE', '0'))
         
-        # Добавляем задачу в планировщик
+        # Добавляем задачу в планировщик с учетом московского времени
         self.scheduler.add_job(
             self.send_daily_report,
-            CronTrigger(hour=hour, minute=minute),
+            CronTrigger(hour=hour, minute=minute, timezone='Europe/Moscow'),
             id='daily_report',
             replace_existing=True
         )
@@ -186,8 +201,8 @@ class DailyReport:
         if not self.scheduler.running:
             self.scheduler.start()
             
-        logger.info(f"Планировщик настроен на отправку отчета в {hour:02d}:{minute:02d}")
-
+        logger.info(f"Планировщик настроен на отправку отчета в {hour:02d}:{minute:02d} (Europe/Moscow)")
+            
     async def main(self):
         """Основная функция для запуска планировщика"""
         # Инициализация базы данных
