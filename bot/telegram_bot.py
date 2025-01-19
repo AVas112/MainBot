@@ -318,8 +318,6 @@ class TelegramBot:
                 <p>Спасибо, что обратились в КлинингУМамы!</p>
                 <p><strong>Имя:</strong> $name</p>
                 <p><strong>Номер:</strong> $phone</p>
-                <p><strong>Время связи:</strong> $time</p>
-                <p>Ваш персональный менеджер скоро с вами свяжется!</p>
             </div>
             <div class="section">
                 <h2>Диалог с клиентом</h2>
@@ -400,7 +398,6 @@ class TelegramBot:
             username=username,
             name=contact_info.get('name', ''),
             phone=contact_info.get('phone_number', ''),
-            time=contact_info.get('preferred_call_time', ''),
             dialog=self.format_dialog(dialog_text)
         )
 
