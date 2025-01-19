@@ -128,6 +128,26 @@ class Database:
             await db.commit()
             return cursor.lastrowid
 
+    async def execute_fetch(self, query: str, params: tuple = None) -> list:
+        """
+        Выполняет SQL запрос и возвращает результаты.
+        
+        Parameters
+        ----------
+        query : str
+            SQL запрос
+        params : tuple, optional
+            Параметры для SQL запроса
+            
+        Returns
+        -------
+        list
+            Результаты запроса
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            async with db.execute(query, params or ()) as cursor:
+                return await cursor.fetchall()
+
     def format_dialog_html(self, dialog_lines: list, username: str) -> str:
         """
         Форматирование диалога в HTML.
