@@ -5,26 +5,11 @@ import json
 import logging
 import re
 from string import Template
-from typing import Any, Dict, Optional, TypedDict
+from typing import Any, Dict, Optional
 from src.config.config import CONFIG
 import httpx
 from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
-
-
-class ToolOutput(TypedDict):
-    """
-    Структура для хранения результата выполнения инструмента.
-
-    Attributes
-    ----------
-    tool_call_id : str
-        Идентификатор вызова инструмента.
-    output : str
-        Результат выполнения инструмента в формате JSON.
-    """
-    tool_call_id: str
-    output: str
 
 
 class ChatGPTAssistant:
@@ -286,7 +271,7 @@ class ChatGPTAssistant:
         tool_call: Any,
         user_id: str,
         thread_id: str
-    ) -> ToolOutput:
+    ) -> Dict[str, str]:
         """
         Обрабатывает информацию о контакте пользователя.
 
@@ -301,7 +286,7 @@ class ChatGPTAssistant:
 
         Returns
         -------
-        ToolOutput
+        Dict[str, str]
             Результат обработки информации о контакте.
         """
         self.write_log(f"Processing get_client_contact_info for user {user_id}")
