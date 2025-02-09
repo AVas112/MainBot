@@ -9,18 +9,18 @@ from email.mime.text import MIMEText
 from string import Template
 
 # Сторонние библиотеки
-import aiofiles
 from telegram import Update
 from telegram.ext import Application, CommandHandler, filters, MessageHandler
 
 # Локальные импорты
-from bot.chatgpt_assistant import ChatGPTAssistant
-from bot.database import Database
-from bot.daily_report import DailyReport
+from src.chatgpt_assistant import ChatGPTAssistant
+from src.database import Database
+from src.daily_report import DailyReport
+from src.config import CONFIG
 
 class TelegramBot:
     def __init__(self):
-        self.token = os.getenv('TELEGRAM_BOT_TOKEN')
+        self.token = CONFIG.TELEGRAM.BOT_TOKEN
         self.application = Application.builder().token(self.token).build()
         self.logger = logging.getLogger(__name__)
         self.dialogs = {}  # Будет хранить список сообщений для каждого пользователя
@@ -30,11 +30,11 @@ class TelegramBot:
         self.db = Database()  # Инициализация базы данных
 
         # Email configuration
-        self.smtp_server = os.getenv('SMTP_SERVER')
-        self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
-        self.smtp_username = os.getenv('SMTP_USERNAME')
-        self.smtp_password = os.getenv('SMTP_PASSWORD')
-        self.notification_email = os.getenv('NOTIFICATION_EMAIL')
+        self.smtp_server = CONFIG.SMTP.SERVER
+        self.smtp_port = CONFIG.SMTP.PORT
+        self.smtp_username = CONFIG.SMTP.USERNAME
+        self.smtp_password = CONFIG.SMTP.PASSWORD
+        self.notification_email = CONFIG.SMTP.NOTIFICATION_EMAIL
 
         # Создаем ChatGPTAssistant после инициализации всех необходимых атрибутов
         self.chatgpt_assistant = ChatGPTAssistant(telegram_bot=self)
