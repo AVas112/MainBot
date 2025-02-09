@@ -7,7 +7,7 @@ import re
 from string import Template
 from typing import Any, Dict, Optional, TypedDict
 from src.config.config import CONFIG
-
+import httpx
 from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
 
@@ -67,8 +67,20 @@ class ChatGPTAssistant:
         """
         self.telegram_bot = telegram_bot
         self.api_key = CONFIG.OPENAI.API_KEY
+
+        # Создаем httpx клиент с настройками прокси
+        proxy_url = f"socks5://{CONFIG.PROXY.USERNAME}:{CONFIG.PROXY.PASSWORD}@{CONFIG.PROXY.HOST}:{CONFIG.PROXY.PORT}"
+        http_client = httpx.Client(
+            proxies={
+                "http://": proxy_url,
+                "https://": proxy_url
+            }
+        )
+
+
         self.client = OpenAI(
             api_key=self.api_key,
+            http_client=http_client,
             default_headers={
                 "OpenAI-Beta": "assistants=v2"
             }
