@@ -1,7 +1,6 @@
 import asyncio
 import logging
 from dotenv import load_dotenv
-import os
 import sys
 
 # Устанавливаем кодировку для вывода
@@ -11,7 +10,7 @@ if sys.stdout.encoding != 'utf-8':
 # Загружаем переменные окружения из .env файла
 load_dotenv()
 
-from bot.daily_report import DailyReport
+from src.daily_report import DailyReport
 
 if __name__ == "__main__":
     logging.basicConfig(

@@ -3,10 +3,10 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
-import os
 import re
 from string import Template
 from typing import Any, Dict, Optional, TypedDict
+from src.config.config import CONFIG
 
 from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
@@ -65,19 +65,19 @@ class ChatGPTAssistant:
         ValueError
             Если не установлен OPENAI_ASSISTANT_ID в переменных окружения.
         """
-        self.api_key = os.getenv("OPENAI_API_KEY")
+        self.telegram_bot = telegram_bot
+        self.api_key = CONFIG.OPENAI.API_KEY
         self.client = OpenAI(
             api_key=self.api_key,
             default_headers={
                 "OpenAI-Beta": "assistants=v2"
             }
         )
-        self.assistant_id = os.getenv("OPENAI_ASSISTANT_ID")
+        self.assistant_id = CONFIG.OPENAI.ASSISTANT_ID
         if self.assistant_id is None:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
         
         self.logger = logging.getLogger(__name__)
-        self.telegram_bot = telegram_bot
         self._log_template = Template("$message")
 
     def create_thread(self, user_id: str) -> str:

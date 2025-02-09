@@ -7,7 +7,7 @@ import os
 import smtplib
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from bot.database import Database
+from src.database import Database
 from zoneinfo import ZoneInfo
 
 logger = logging.getLogger(__name__)

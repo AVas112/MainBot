@@ -1,5 +1,4 @@
 import aiosqlite
-import datetime
 import os
 import json
 from string import Template
