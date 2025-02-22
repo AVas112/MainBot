@@ -63,7 +63,7 @@ class TelegramBot:
         - /help : Получение справки
         - text messages : Обработка текстовых сообщений
         """
-        self.logger.info(Template("$action").substitute(action="Настройка телеграм-бота..."))
+        self.logger.info("Настройка телеграм-бота...")
         
         # Инициализируем базу данных и планировщик перед запуском бота
         loop = asyncio.new_event_loop()
@@ -89,7 +89,7 @@ class TelegramBot:
             )
         )
         
-        self.logger.info(Template("$action").substitute(action="Запуск телеграм-бота..."))
+        self.logger.info("Запуск телеграм-бота...")
         self.application.run_polling(allowed_updates=Update.ALL_TYPES)
 
     async def start(self, update: Update, context):
@@ -104,11 +104,9 @@ class TelegramBot:
             Контекст обработчика.
         """
         user_id = update.effective_user.id
-        self.logger.info(Template("Пользователь $user_id запустил бота").substitute(user_id=user_id))
+        self.logger.info(f"Пользователь {user_id} запустил бота")
         await update.message.reply_text(
-            text=Template("$greeting").substitute(
-                greeting="Добрый день, на связи Коливинг. Для дальнейшего диалога расскажите коротко о себе."
-            )
+            text="Добрый день, на связи Коливинг. Для дальнейшего диалога расскажите коротко о себе."
         )
 
     async def help(self, update: Update, context):
@@ -123,12 +121,8 @@ class TelegramBot:
             Контекст обработчика.
         """
         user_id = update.effective_user.id
-        self.logger.info(Template("Пользователь $user_id запросил помощь").substitute(user_id=user_id))
-        help_text = Template(
-            "Доступные команды:\n"
-            "/start - Начать диалог\n"
-            "/help - Показать это сообщение\n"
-        ).substitute()
+        self.logger.info(f"Пользователь {user_id} запросил помощь")
+        help_text = "Доступные команды:\n/start - Начать диалог\n/help - Показать это сообщение\n"
         await update.message.reply_text(text=help_text)
 
     async def handle_message(self, update: Update, context):
@@ -166,19 +160,17 @@ class TelegramBot:
             )
             
             self.dialogs[user_id].append(
-                Template("User: $message").substitute(message=message_text)
+                f"User: {message_text}"
             )
             
             self.logger.info(
-                Template("Получено сообщение от пользователя $user_id ($username): $message...")
-                .substitute(user_id=user_id, username=username, message=message_text[:50])
+                f"Получено сообщение от пользователя {user_id} ({username}): {message_text[:50]}..."
             )
 
             thread_id = self.threads.get(str(user_id))
             if thread_id is None:
                 self.logger.info(
-                    Template("Создание нового потока для пользователя $user_id")
-                    .substitute(user_id=user_id)
+                    f"Создание нового потока для пользователя {user_id}"
                 )
                 thread_id = self.chatgpt_assistant.create_thread(user_id=user_id)
                 self.threads[str(user_id)] = thread_id
@@ -186,8 +178,7 @@ class TelegramBot:
 
             try:
                 self.logger.info(
-                    Template("Отправка сообщения ChatGPT для пользователя $user_id")
-                    .substitute(user_id=user_id)
+                    f"Отправка сообщения ChatGPT для пользователя {user_id}"
                 )
                 response = await self.chatgpt_assistant.get_response(
                     user_message=message_text,
@@ -195,8 +186,7 @@ class TelegramBot:
                     user_id=str(user_id)
                 )
                 self.logger.info(
-                    Template("Получен ответ от ChatGPT для пользователя $user_id")
-                    .substitute(user_id=user_id)
+                    f"Получен ответ от ChatGPT для пользователя {user_id}"
                 )
 
                 # Сохраняем ответ ассистента в базу данных
@@ -208,7 +198,7 @@ class TelegramBot:
                 )
 
                 self.dialogs[user_id].append(
-                    Template("ChatGPT: $response").substitute(response=response)
+                    f"ChatGPT: {response}"
                 )
 
                 await update.message.reply_text(
@@ -217,55 +207,47 @@ class TelegramBot:
                 )
                 
             except Exception as e:
-                error_msg = Template("Ошибка при получении ответа от ChatGPT: $error").substitute(error=str(e))
-                self.logger.error(error_msg)
+                self.logger.error(f"Ошибка при получении ответа от ChatGPT: {str(e)}")
                 await update.message.reply_text(
-                    text=Template("Произошла ошибка при обработке вашего сообщения: $error")
-                    .substitute(error=str(e))
+                    text=f"Произошла ошибка при обработке вашего сообщения: {str(e)}"
                 )
                 
         except Exception as e:
-            error_msg = Template("Ошибка при обработке сообщения: $error").substitute(error=str(e))
-            self.logger.error(error_msg)
+            self.logger.error(f"Ошибка при обработке сообщения: {str(e)}")
             await update.message.reply_text(
-                text=Template("Произошла ошибка при обработке вашего сообщения: $error")
-                .substitute(error=str(e))
+                text=f"Произошла ошибка при обработке вашего сообщения: {str(e)}"
             )
 
     def load_threads(self):
         """
-        Загружает информацию о потоках из файла.
+        Загружает сохраненные потоки из файла.
 
         Returns
         -------
-        dict
-            Словарь с информацией о потоках, где ключ - id пользователя,
-            значение - id потока.
+        Dict[str, str]
+            Словарь с потоками, где ключ - ID пользователя, значение - ID потока.
         """
         if os.path.exists('threads.json'):
             with open('threads.json', 'r') as file:
                 try:
                     threads = json.load(file)
-                    self.logger.info(Template("Loaded threads: $threads").substitute(threads=threads))
+                    self.logger.info(f"Loaded threads: {threads}")
                     return {str(key): value for key, value in threads.items()}
                 except json.JSONDecodeError as e:
-                    self.logger.error(Template("Ошибка декодирования threads.json: $error").substitute(error=e))
+                    self.logger.error(f"Ошибка декодирования threads.json: {str(e)}")
                     return {}
         return {}
 
     def save_threads(self):
         """
-        Сохраняет информацию о потоках в файл.
-
-        Записывает текущее состояние словаря потоков в JSON файл
-        для последующего восстановления.
+        Сохраняет текущие потоки в файл.
         """
         with open('threads.json', 'w') as file:
             try:
                 json.dump(self.threads, file, indent=4)
-                self.logger.info(Template("Saved threads: $threads").substitute(threads=self.threads))
+                self.logger.info(f"Saved threads: {self.threads}")
             except (TypeError, ValueError) as e:
-                self.logger.error(Template("Ошибка сохранения потоков: $error").substitute(error=e))
+                self.logger.error(f"Ошибка сохранения потоков: {str(e)}")
 
     async def send_smtp_message(self, msg):
         """
@@ -362,10 +344,7 @@ class TelegramBot:
         # Используем сохраненный telegram_username если он есть, иначе ID пользователя
         username = f"@{self.usernames.get(user_id, str(user_id))}"
         
-        self.logger.info(Template("Начинаем отправку письма для user_id: $user_id, username: $username").substitute(
-            user_id=user_id, 
-            username=username
-        ))
+        self.logger.info(f"Начинаем отправку письма для user_id: {user_id}, username: {username}")
         
         if not all([self.smtp_username, self.smtp_password]):
             self.logger.error("Отсутствуют SMTP-учетные данные в переменных окружения")
@@ -390,7 +369,7 @@ class TelegramBot:
         msg = MIMEMultipart('alternative')
         msg['From'] = self.smtp_username
         msg['To'] = 'da1212112@gmail.com'
-        msg['Subject'] = Template("Новый заказ от пользователя $name").substitute(name=username)
+        msg['Subject'] = f"Новый заказ от пользователя {username}"
         
         template = self.create_email_template()
         html_body = template.substitute(

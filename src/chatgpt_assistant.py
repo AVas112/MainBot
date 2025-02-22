@@ -4,7 +4,6 @@ import asyncio
 import json
 import logging
 import re
-from string import Template
 from typing import Any, Dict, Optional
 from src.config.config import CONFIG
 import httpx
@@ -33,8 +32,6 @@ class ChatGPTAssistant:
         Логгер для записи информации о работе ассистента.
     telegram_bot : Optional[Any]
         Экземпляр телеграм бота.
-    _log_template : Template
-        Шаблон для форматирования сообщений лога.
     """
     def __init__(self, telegram_bot: Optional[Any] = None) -> None:
         """
@@ -75,7 +72,6 @@ class ChatGPTAssistant:
             raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
         
         self.logger = logging.getLogger(__name__)
-        self._log_template = Template("$message")
 
     def create_thread(self, user_id: str) -> str:
         """
@@ -91,22 +87,9 @@ class ChatGPTAssistant:
         str
             Идентификатор созданного потока.
         """
-        self.write_log(
-            message=f"Creating new thread for user {user_id}"
-        )
+        self.logger.info(f"Creating new thread for user {user_id}")
         thread = self.client.beta.threads.create()
         return thread.id
-
-    def write_log(self, message: str) -> None:
-        """
-        Записывает сообщение в лог.
-
-        Parameters
-        ----------
-        message : str
-            Текст сообщения для записи в лог.
-        """
-        self.logger.info(self._log_template.substitute(message=message))
 
     def add_user_message(self, thread_id: str, message: str) -> None:
         """
@@ -119,7 +102,7 @@ class ChatGPTAssistant:
         message : str
             Текст сообщения пользователя.
         """
-        self.write_log(message="Adding user message to thread")
+        self.logger.info("Adding user message to thread")
         self.client.beta.threads.messages.create(
             thread_id=thread_id,
             role="user",
@@ -140,7 +123,7 @@ class ChatGPTAssistant:
         Run
             Объект запуска.
         """
-        self.write_log(message="Creating run")
+        self.logger.info("Creating run")
         return self.client.beta.threads.runs.create(
             thread_id=thread_id,
             assistant_id=self.assistant_id
@@ -165,20 +148,18 @@ class ChatGPTAssistant:
             Ответ ассистента.
         """
         try:
-            self.write_log(f"Getting response for message: {user_message[:50]}...")
+            self.logger.info(f"Getting response for message: {user_message[:50]}...")
             self.add_user_message(thread_id=thread_id, message=user_message)
             
             run = self.create_run(thread_id=thread_id)
             return await self.process_run(run=run, thread_id=thread_id, user_id=user_id, retry_count=0)
 
         except OpenAIError as error:
-            error_message = f"OpenAI API error: {str(error)}"
-            self.logger.error(error_message)
+            self.logger.error(f"OpenAI API error: {str(error)}")
             raise
 
         except Exception as error:
-            error_message = f"Unexpected error: {str(error)}"
-            self.logger.error(error_message)
+            self.logger.error(f"Unexpected error: {str(error)}")
             raise
 
     async def process_run(self, run: Run, thread_id: str, user_id: str, retry_count: int = 0) -> str:
@@ -247,7 +228,7 @@ class ChatGPTAssistant:
         Run
             Объект запуска после обработки необходимых действий.
         """
-        self.write_log(message="Run requires action (tool calls)")
+        self.logger.info("Run requires action (tool calls)")
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
         tool_outputs = []
 
@@ -289,9 +270,9 @@ class ChatGPTAssistant:
         Dict[str, str]
             Результат обработки информации о контакте.
         """
-        self.write_log(f"Processing get_client_contact_info for user {user_id}")
+        self.logger.info(f"Processing get_client_contact_info for user {user_id}")
         contact_info = json.loads(tool_call.function.arguments)
-        self.write_log(f"Parsed contact info: {contact_info}")
+        self.logger.info(f"Parsed contact info: {contact_info}")
 
         await self.save_and_notify_contact(
             user_id=user_id,
@@ -326,10 +307,10 @@ class ChatGPTAssistant:
             Информация о контакте.
         """
         if self.telegram_bot is not None:
-            self.write_log("TelegramBot instance found, attempting to send email")
+            self.logger.info("TelegramBot instance found, attempting to send email")
             try:
                 await self.telegram_bot.send_email(int(user_id), contact_info)
-                self.write_log("Email sent successfully")
+                self.logger.info("Email sent successfully")
             except Exception as error:
                 self.logger.error(f"Error sending email: {str(error)}")
         else:
@@ -349,7 +330,7 @@ class ChatGPTAssistant:
         str
             Ответ ассистента.
         """
-        self.write_log("Run completed, retrieving assistant message")
+        self.logger.info("Run completed, retrieving assistant message")
         messages = self.client.beta.threads.messages.list(thread_id=thread_id)
         assistant_message = next(
             (msg for msg in messages.data if msg.role == "assistant"),
@@ -358,7 +339,7 @@ class ChatGPTAssistant:
 
         if assistant_message is not None and assistant_message.content:
             response = assistant_message.content[0].text.value
-            self.write_log(f"Got response: {response[:50]}...")
+            self.logger.info(f"Got response: {response[:50]}...")
             
             # Удаляем специальные маркеры
             response = re.sub(r"【.*?】", "", response)
