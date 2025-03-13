@@ -17,16 +17,19 @@ class OpenAIConfig(ABCBaseSettings):
 
 
 class ProxyConfig(ABCBaseSettings):
-    HOST: str
-    PORT: int
-    USERNAME: str
-    PASSWORD: str
+    USE_PROXY: bool
+    HOST: str = ""
+    PORT: int = 0
+    USERNAME: str = ""
+    PASSWORD: str = ""
 
     model_config = SettingsConfigDict(env_prefix="PROXY_")
 
     @property
     def proxy_url(self) -> str:
         """Возвращает URL прокси в формате для httpx."""
+        if self.USE_PROXY is False:
+            return ""
         return f"http://{self.USERNAME}:{self.PASSWORD}@{self.HOST}:{self.PORT}"
 
 

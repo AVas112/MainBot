@@ -61,3 +61,7 @@ database/
 *.db
 *.sqlite
 *.sqlite3
+
+# Additional directories to ignore
+info/
+info/*

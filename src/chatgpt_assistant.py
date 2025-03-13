@@ -5,11 +5,12 @@ import json
 import logging
 import re
 from typing import Any, Dict, Optional
-from src.config.config import CONFIG
-import httpx
+
 from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
 
+from src.config.config import CONFIG
+from src.utils.proxy import create_proxy_client
 
 class ChatGPTAssistant:
     """
@@ -47,30 +48,17 @@ class ChatGPTAssistant:
         ValueError
             Если не установлен OPENAI_ASSISTANT_ID в переменных окружения.
         """
-        self.telegram_bot = telegram_bot
-        self.api_key = CONFIG.OPENAI.API_KEY
-
-        # Создаем httpx клиент с настройками прокси
-        proxy_url = f"socks5://{CONFIG.PROXY.USERNAME}:{CONFIG.PROXY.PASSWORD}@{CONFIG.PROXY.HOST}:{CONFIG.PROXY.PORT}"
-        http_client = httpx.Client(
-            proxies={
-                "http://": proxy_url,
-                "https://": proxy_url
-            }
-        )
-
-
-        self.client = OpenAI(
-            api_key=self.api_key,
-            http_client=http_client,
-            default_headers={
-                "OpenAI-Beta": "assistants=v2"
-            }
-        )
+        http_client = create_proxy_client()
         self.assistant_id = CONFIG.OPENAI.ASSISTANT_ID
-        if self.assistant_id is None:
-            raise ValueError("OPENAI_ASSISTANT_ID is not set in the environment variables.")
+        self.api_key = CONFIG.OPENAI.API_KEY
+        self.telegram_bot = telegram_bot
         
+        # Создаем клиент OpenAI с прокси или без
+        openai_params = {"api_key": self.api_key, "default_headers": {"OpenAI-Beta": "assistants=v2"}}
+        if http_client is not None:
+            openai_params["http_client"] = http_client
+            
+        self.client = OpenAI(**openai_params)
         self.logger = logging.getLogger(__name__)
 
     def create_thread(self, user_id: str) -> str:
