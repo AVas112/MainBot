@@ -79,6 +79,39 @@ class ChatGPTAssistant:
         thread = self.client.beta.threads.create()
         return thread.id
 
+    async def get_response(self, user_message: str, thread_id: str, user_id: str) -> str:
+        """
+        Получает ответ от ассистента на сообщение пользователя.
+
+        Parameters
+        ----------
+        user_message : str
+            Сообщение пользователя.
+        thread_id : str
+            Идентификатор потока.
+        user_id : str
+            Идентификатор пользователя.
+
+        Returns
+        -------
+        str
+            Ответ ассистента.
+        """
+        try:
+            self.logger.info(f"Getting response for message: {user_message[:50]}...")
+            self.add_user_message(thread_id=thread_id, message=user_message)
+            
+            run = self.create_run(thread_id=thread_id)
+            return await self.process_run(run=run, thread_id=thread_id, user_id=user_id, retry_count=0)
+
+        except OpenAIError as error:
+            self.logger.error(f"OpenAI API error: {str(error)}")
+            raise
+
+        except Exception as error:
+            self.logger.error(f"Unexpected error: {str(error)}")
+            raise
+
     def add_user_message(self, thread_id: str, message: str) -> None:
         """
         Добавляет сообщение пользователя в поток.
@@ -116,39 +149,6 @@ class ChatGPTAssistant:
             thread_id=thread_id,
             assistant_id=self.assistant_id
         )
-
-    async def get_response(self, user_message: str, thread_id: str, user_id: str) -> str:
-        """
-        Получает ответ от ассистента на сообщение пользователя.
-
-        Parameters
-        ----------
-        user_message : str
-            Сообщение пользователя.
-        thread_id : str
-            Идентификатор потока.
-        user_id : str
-            Идентификатор пользователя.
-
-        Returns
-        -------
-        str
-            Ответ ассистента.
-        """
-        try:
-            self.logger.info(f"Getting response for message: {user_message[:50]}...")
-            self.add_user_message(thread_id=thread_id, message=user_message)
-            
-            run = self.create_run(thread_id=thread_id)
-            return await self.process_run(run=run, thread_id=thread_id, user_id=user_id, retry_count=0)
-
-        except OpenAIError as error:
-            self.logger.error(f"OpenAI API error: {str(error)}")
-            raise
-
-        except Exception as error:
-            self.logger.error(f"Unexpected error: {str(error)}")
-            raise
 
     async def process_run(self, run: Run, thread_id: str, user_id: str, retry_count: int = 0) -> str:
         """
@@ -189,7 +189,6 @@ class ChatGPTAssistant:
                 self.logger.warning(f"Run failed for user {user_id} with status: {run.status}. Attempt {retry_count + 1} of {max_retries}")
                 
                 if retry_count < max_retries:
-                    # Создаем новый run для повторной попытки
                     new_run = self.create_run(thread_id)
                     return await self.process_run(new_run, thread_id, user_id, retry_count + 1)
                 else:
@@ -222,7 +221,7 @@ class ChatGPTAssistant:
 
         for tool_call in tool_calls:
             if tool_call.function.name == "get_client_contact_info":
-                tool_output = await self.process_contact_info(
+                tool_output = await self.process_contact_info_tool_call(
                     tool_call=tool_call,
                     user_id=user_id,
                     thread_id=thread_id
@@ -235,7 +234,7 @@ class ChatGPTAssistant:
             tool_outputs=tool_outputs
         )
 
-    async def process_contact_info(
+    async def process_contact_info_tool_call(
         self,
         tool_call: Any,
         user_id: str,
@@ -262,7 +261,7 @@ class ChatGPTAssistant:
         contact_info = json.loads(tool_call.function.arguments)
         self.logger.info(f"Parsed contact info: {contact_info}")
 
-        await self.save_and_notify_contact(
+        await self.send_contact_notification(
             user_id=user_id,
             thread_id=thread_id,
             contact_info=contact_info
@@ -276,7 +275,7 @@ class ChatGPTAssistant:
             })
         }
 
-    async def save_and_notify_contact(
+    async def send_contact_notification(
         self,
         user_id: str,
         thread_id: str,

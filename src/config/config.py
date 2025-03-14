@@ -17,7 +17,7 @@ class OpenAIConfig(ABCBaseSettings):
 
 
 class ProxyConfig(ABCBaseSettings):
-    USE_PROXY: bool
+    USE_PROXY: bool = False
     HOST: str = ""
     PORT: int = 0
     USERNAME: str = ""
