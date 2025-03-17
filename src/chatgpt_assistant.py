@@ -270,8 +270,7 @@ class ChatGPTAssistant:
             if tool_call.function.name == "get_client_contact_info":
                 tool_output = await self.process_contact_info_tool_call(
                     tool_call=tool_call,
-                    user_id=user_id,
-                    thread_id=thread_id
+                    user_id=user_id
                 )
                 tool_outputs.append(tool_output)
 
@@ -284,8 +283,7 @@ class ChatGPTAssistant:
     async def process_contact_info_tool_call(
         self,
         tool_call: Any,
-        user_id: str,
-        thread_id: str
+        user_id: str
     ) -> Dict[str, str]:
         """
         Обрабатывает информацию о контакте пользователя.
@@ -296,8 +294,6 @@ class ChatGPTAssistant:
             Вызов инструмента для получения информации о контакте.
         user_id : str
             Идентификатор пользователя.
-        thread_id : str
-            Идентификатор потока.
 
         Returns
         -------
