@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, TYPE_CHECKING
 
 from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
@@ -13,13 +13,17 @@ from src.config.config import CONFIG
 from src.utils.proxy import create_proxy_client
 from src.utils.email_service import email_service
 
+# Используем TYPE_CHECKING для избежания циклических импортов
+if TYPE_CHECKING:
+    from src.telegram_bot import TelegramBot
+
 class ChatGPTAssistant:
     """
     Класс для работы с OpenAI Assistant API.
 
     Parameters
     ----------
-    telegram_bot : Optional[Any]
+    telegram_bot : Optional['TelegramBot']
         Экземпляр телеграм бота для отправки уведомлений.
 
     Attributes
@@ -32,16 +36,16 @@ class ChatGPTAssistant:
         Идентификатор ассистента OpenAI.
     logger : logging.Logger
         Логгер для записи информации о работе ассистента.
-    telegram_bot : Optional[Any]
+    telegram_bot : Optional['TelegramBot']
         Экземпляр телеграм бота.
     """
-    def __init__(self, telegram_bot: Optional[Any] = None) -> None:
+    def __init__(self, telegram_bot: Optional['TelegramBot'] = None) -> None:
         """
         Инициализация ассистента.
 
         Parameters
         ----------
-        telegram_bot : Optional[Any]
+        telegram_bot : Optional['TelegramBot']
             Экземпляр телеграм бота для отправки уведомлений.
 
         Raises
@@ -296,17 +300,19 @@ class ChatGPTAssistant:
         """
         self.logger.info("Attempting to send email notification")
         try:
-            # Используем username из контактной информации или просто ID пользователя
-            username = contact_info.get('username', str(user_id))
+            # Получаем имя пользователя из телеграм-бота
+            int_user_id = int(user_id)
+            if int_user_id in self.telegram_bot.usernames:
+                username = self.telegram_bot.usernames[int_user_id]
+            else:
+                self.logger.info("Пользователь скрыл свое телеграм имя")
+                username = str(user_id)
             
-            # Получаем диалог из базы данных, если есть доступ к боту
-            dialog_text = []
-            if self.telegram_bot is not None and hasattr(self.telegram_bot, 'db'):
-                dialog_text = await self.telegram_bot.db.get_dialog(int(user_id))
+            dialog_text = await self.telegram_bot.db.get_dialog(int_user_id)
             
             # Отправляем email через синглтон email_service
             await email_service.send_telegram_dialog_email(
-                user_id=int(user_id),
+                user_id=int_user_id,
                 username=username,
                 contact_info=contact_info,
                 dialog_text=dialog_text,
