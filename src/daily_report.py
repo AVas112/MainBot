@@ -1,14 +1,12 @@
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
 import os
-import smtplib
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from src.database import Database
 from zoneinfo import ZoneInfo
+from src.utils.email_service import email_service
 
 logger = logging.getLogger(__name__)
 
@@ -26,14 +24,6 @@ class DailyReport:
         self.bot = telegram_bot
         self.scheduler = AsyncIOScheduler()
         
-        # Если бот не передан, инициализируем базовые SMTP настройки
-        if not telegram_bot:
-            self.smtp_server = os.getenv('SMTP_SERVER')
-            self.smtp_port = int(os.getenv('SMTP_PORT', '587'))
-            self.smtp_username = os.getenv('SMTP_USERNAME')
-            self.smtp_password = os.getenv('SMTP_PASSWORD')
-            self.notification_email = os.getenv('NOTIFICATION_EMAIL')
-            
     async def get_daily_dialogs(self) -> list:
         """
         Получение диалогов за последние 24 часа
@@ -145,34 +135,20 @@ class DailyReport:
             dialogs = await self.get_daily_dialogs()
             report_html = self.format_report(dialogs)
             
-            msg = MIMEMultipart()
-            msg['Subject'] = f'Ежедневный отчет по диалогам {datetime.now().strftime("%Y-%m-%d")}'
-            msg['From'] = self.smtp_username if not self.bot else self.bot.smtp_username
-            msg['To'] = self.notification_email if not self.bot else self.bot.notification_email
+            # Формируем тему письма
+            subject = f'Ежедневный отчет по диалогам {datetime.now().strftime("%Y-%m-%d")}'
             
-            msg.attach(MIMEText(report_html, 'html'))
-            
-            if self.bot:
-                await self.bot.send_smtp_message(msg)
-            else:
-                # Создаем временный event loop для отправки email если нет бота
-                loop = asyncio.get_event_loop()
-                await loop.run_in_executor(None, lambda: self._send_email(msg))
+            # Отправляем отчет через email_service
+            await email_service.send_email(
+                subject=subject,
+                body=report_html,
+                recipient=None  # Будет использован notification_email из конфигурации
+            )
                 
             logger.info("Ежедневный отчет успешно отправлен")
             
         except Exception as e:
             logger.error(f"Ошибка при отправке ежедневного отчета: {str(e)}")
-
-    def _send_email(self, msg):
-        """Внутренний метод для отправки email через SMTP"""
-        try:
-            with smtplib.SMTP(self.smtp_server, self.smtp_port) as server:
-                server.starttls()
-                server.login(self.smtp_username, self.smtp_password)
-                server.send_message(msg)
-        except Exception as e:
-            logger.error(f"Ошибка при отправке письма: {str(e)}")
 
     def schedule_daily_report(self, hour: int = None, minute: int = None):
         """

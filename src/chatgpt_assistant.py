@@ -11,6 +11,7 @@ from openai.types.beta.threads import Run
 
 from src.config.config import CONFIG
 from src.utils.proxy import create_proxy_client
+from src.utils.email_service import email_service
 
 class ChatGPTAssistant:
     """
@@ -293,15 +294,27 @@ class ChatGPTAssistant:
         contact_info : Dict[str, Any]
             Информация о контакте.
         """
-        if self.telegram_bot is not None:
-            self.logger.info("TelegramBot instance found, attempting to send email")
-            try:
-                await self.telegram_bot.send_email(int(user_id), contact_info)
-                self.logger.info("Email sent successfully")
-            except Exception as error:
-                self.logger.error(f"Error sending email: {str(error)}")
-        else:
-            self.logger.error("No TelegramBot instance available")
+        self.logger.info("Attempting to send email notification")
+        try:
+            # Используем username из контактной информации или просто ID пользователя
+            username = contact_info.get('username', str(user_id))
+            
+            # Получаем диалог из базы данных, если есть доступ к боту
+            dialog_text = []
+            if self.telegram_bot is not None and hasattr(self.telegram_bot, 'db'):
+                dialog_text = await self.telegram_bot.db.get_dialog(int(user_id))
+            
+            # Отправляем email через синглтон email_service
+            await email_service.send_telegram_dialog_email(
+                user_id=int(user_id),
+                username=username,
+                contact_info=contact_info,
+                dialog_text=dialog_text,
+                db=self.telegram_bot.db if self.telegram_bot is not None and hasattr(self.telegram_bot, 'db') else None
+            )
+            self.logger.info("Email sent successfully")
+        except Exception as error:
+            self.logger.error(f"Error sending email: {str(error)}")
 
     async def get_assistant_response(self, thread_id: str) -> str:
         """
