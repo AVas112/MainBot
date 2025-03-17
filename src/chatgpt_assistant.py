@@ -202,6 +202,48 @@ class ChatGPTAssistant:
 
             await asyncio.sleep(1)
 
+    async def get_assistant_response(self, thread_id: str) -> str:
+        """
+        Получает ответ от ассистента.
+
+        Parameters
+        ----------
+        thread_id : str
+            Идентификатор потока.
+
+        Returns
+        -------
+        str
+            Ответ ассистента.
+        """
+        self.logger.info("Run completed, retrieving assistant message")
+        messages = self.client.beta.threads.messages.list(thread_id=thread_id)
+        assistant_message = next(
+            (msg for msg in messages.data if msg.role == "assistant"),
+            None
+        )
+
+        if assistant_message is not None and assistant_message.content:
+            response = assistant_message.content[0].text.value
+            self.logger.info(f"Got response: {response[:50]}...")
+
+            # Удаляем специальные маркеры
+            response = re.sub(r"【.*?】", "", response)
+
+            # Преобразуем двойные звездочки в HTML-теги для жирного текста
+            response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", response)
+
+            # Преобразуем Markdown-ссылки в HTML-формат для Telegram
+            response = re.sub(
+                r"\[([^]]+)]\(([^)]+)\)",
+                r'<a href="\2">\1</a>',
+                response
+            )
+
+            return response
+
+        return "Извините, не удалось получить ответ. Пожалуйста, попробуйте еще раз."
+
     async def handle_required_action(self, run: Run, thread_id: str, user_id: str) -> Run:
         """
         Обрабатывает необходимые действия для запуска.
@@ -268,7 +310,6 @@ class ChatGPTAssistant:
 
         await self.send_contact_notification(
             user_id=user_id,
-            thread_id=thread_id,
             contact_info=contact_info
         )
 
@@ -283,7 +324,6 @@ class ChatGPTAssistant:
     async def send_contact_notification(
         self,
         user_id: str,
-        thread_id: str,
         contact_info: Dict[str, Any]
     ) -> None:
         """
@@ -293,8 +333,6 @@ class ChatGPTAssistant:
         ----------
         user_id : str
             Идентификатор пользователя.
-        thread_id : str
-            Идентификатор потока.
         contact_info : Dict[str, Any]
             Информация о контакте.
         """
@@ -321,45 +359,3 @@ class ChatGPTAssistant:
             self.logger.info("Email sent successfully")
         except Exception as error:
             self.logger.error(f"Error sending email: {str(error)}")
-
-    async def get_assistant_response(self, thread_id: str) -> str:
-        """
-        Получает ответ от ассистента.
-
-        Parameters
-        ----------
-        thread_id : str
-            Идентификатор потока.
-
-        Returns
-        -------
-        str
-            Ответ ассистента.
-        """
-        self.logger.info("Run completed, retrieving assistant message")
-        messages = self.client.beta.threads.messages.list(thread_id=thread_id)
-        assistant_message = next(
-            (msg for msg in messages.data if msg.role == "assistant"),
-            None
-        )
-
-        if assistant_message is not None and assistant_message.content:
-            response = assistant_message.content[0].text.value
-            self.logger.info(f"Got response: {response[:50]}...")
-            
-            # Удаляем специальные маркеры
-            response = re.sub(r"【.*?】", "", response)
-            
-            # Преобразуем двойные звездочки в HTML-теги для жирного текста
-            response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", response)
-            
-            # Преобразуем Markdown-ссылки в HTML-формат для Telegram
-            response = re.sub(
-                r"\[([^\]]+)\]\(([^\)]+)\)",
-                r'<a href="\2">\1</a>',
-                response
-            )
-            
-            return response
-        
-        return "Извините, не удалось получить ответ. Пожалуйста, попробуйте еще раз."
