@@ -1,4 +1,4 @@
-# Проект: Умный Telegram-бот на Python с интеграцией OpenAI GPT
+# Умный Telegram-бот на Python с интеграцией OpenAI GPT
 
 ## Что это за проект?
 
