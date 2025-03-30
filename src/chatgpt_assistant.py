@@ -4,61 +4,61 @@ import asyncio
 import json
 import logging
 import re
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
 
 from src.config.config import CONFIG
-from src.utils.proxy import create_proxy_client
 from src.utils.email_service import email_service
+from src.utils.proxy import create_proxy_client
 
-# Используем TYPE_CHECKING для избежания циклических импортов
+
 if TYPE_CHECKING:
     from src.telegram_bot import TelegramBot
 
 class ChatGPTAssistant:
     """
-    Класс для работы с OpenAI Assistant API.
+    Class for interacting with the OpenAI Assistant API.
 
     Parameters
     ----------
     telegram_bot : Optional['TelegramBot']
-        Экземпляр телеграм бота для отправки уведомлений.
+        Telegram bot instance for sending notifications.
 
     Attributes
     ----------
     api_key : str
-        Ключ API OpenAI.
+        OpenAI API key.
     client : OpenAI
-        Клиент OpenAI API.
+        OpenAI API client.
     assistant_id : str
-        Идентификатор ассистента OpenAI.
+        OpenAI assistant ID.
     logger : logging.Logger
-        Логгер для записи информации о работе ассистента.
+        Logger for recording information about the assistant's operation.
     telegram_bot : Optional['TelegramBot']
-        Экземпляр телеграм бота.
+        Telegram bot instance.
     """
-    def __init__(self, telegram_bot: Optional['TelegramBot'] = None) -> None:
+
+    def __init__(self, telegram_bot: TelegramBot | None = None) -> None:
         """
-        Инициализация ассистента.
+        Assistant initialization.
 
         Parameters
         ----------
         telegram_bot : Optional['TelegramBot']
-            Экземпляр телеграм бота для отправки уведомлений.
+            Telegram bot instance for sending notifications.
 
         Raises
         ------
         ValueError
-            Если не установлен OPENAI_ASSISTANT_ID в переменных окружения.
+            If OPENAI_ASSISTANT_ID is not set in environment variables.
         """
         http_client = create_proxy_client()
         self.assistant_id = CONFIG.OPENAI.ASSISTANT_ID
         self.api_key = CONFIG.OPENAI.API_KEY
         self.telegram_bot = telegram_bot
         
-        # Создаем клиент OpenAI с прокси или без
         openai_params = {"api_key": self.api_key, "default_headers": {"OpenAI-Beta": "assistants=v2"}}
         if http_client is not None:
             openai_params["http_client"] = http_client
@@ -68,17 +68,17 @@ class ChatGPTAssistant:
 
     def create_thread(self, user_id: str) -> str:
         """
-        Создает новый поток для общения с пользователем.
+        Creates a new thread for communication with the user.
 
         Parameters
         ----------
         user_id : str
-            Идентификатор пользователя.
+            User identifier.
 
         Returns
         -------
         str
-            Идентификатор созданного потока.
+            Identifier of the created thread.
         """
         self.logger.info(f"Creating new thread for user {user_id}")
         thread = self.client.beta.threads.create()
@@ -86,21 +86,21 @@ class ChatGPTAssistant:
 
     async def get_response(self, user_message: str, thread_id: str, user_id: str) -> str:
         """
-        Получает ответ от ассистента на сообщение пользователя.
+        Gets a response from the assistant to the user's message.
 
         Parameters
         ----------
         user_message : str
-            Сообщение пользователя.
+            User message.
         thread_id : str
-            Идентификатор потока.
+            Thread identifier.
         user_id : str
-            Идентификатор пользователя.
+            User identifier.
 
         Returns
         -------
         str
-            Ответ ассистента.
+            Assistant's response.
         """
         try:
             self.logger.info(f"Getting response for message: {user_message[:50]}...")
@@ -119,14 +119,14 @@ class ChatGPTAssistant:
 
     def add_user_message(self, thread_id: str, message: str) -> None:
         """
-        Добавляет сообщение пользователя в поток.
+        Adds the user's message to the thread.
 
         Parameters
         ----------
         thread_id : str
-            Идентификатор потока.
+            Thread identifier.
         message : str
-            Текст сообщения пользователя.
+            Text of the user's message.
         """
         self.logger.info("Adding user message to thread")
         self.client.beta.threads.messages.create(
@@ -137,17 +137,17 @@ class ChatGPTAssistant:
 
     def create_run(self, thread_id: str) -> Run:
         """
-        Создает новый запуск для обработки сообщений в потоке.
+        Creates a new run to process messages in the thread.
 
         Parameters
         ----------
         thread_id : str
-            Идентификатор потока.
+            Thread identifier.
 
         Returns
         -------
         Run
-            Объект запуска.
+            Run object.
         """
         self.logger.info("Creating run")
         return self.client.beta.threads.runs.create(
@@ -157,25 +157,25 @@ class ChatGPTAssistant:
 
     async def process_run(self, run: Run, thread_id: str, user_id: str, retry_count: int = 0) -> str:
         """
-        Обрабатывает запуск для получения ответа от ассистента.
+        Processes the run to get a response from the assistant.
 
         Parameters
         ----------
         run : Run
-            Объект запуска.
+            Run object.
         thread_id : str
-            Идентификатор потока.
+            Thread identifier.
         user_id : str
-            Идентификатор пользователя.
+            User identifier.
         retry_count : int
-            Текущее количество попыток повторной отправки.
+            Current number of retry attempts.
 
         Returns
         -------
         str
-            Ответ ассистента.
+            Assistant's response.
         """
-        max_retries = 3  # Максимальное количество попыток
+        max_retries = 3
         
         while True:
             run = self.client.beta.threads.runs.retrieve(
@@ -191,7 +191,10 @@ class ChatGPTAssistant:
                 return await self.get_assistant_response(thread_id=thread_id)
 
             if run.status in ["failed", "cancelled", "expired"]:
-                self.logger.warning(f"Run failed for user {user_id} with status: {run.status}. Attempt {retry_count + 1} of {max_retries}")
+                self.logger.warning(
+                    f"Run failed for user {user_id} with status: {run.status}. "
+                    f"Attempt {retry_count + 1} of {max_retries}"
+                )
                 
                 if retry_count < max_retries:
                     new_run = self.create_run(thread_id)
@@ -204,17 +207,17 @@ class ChatGPTAssistant:
 
     async def get_assistant_response(self, thread_id: str) -> str:
         """
-        Получает ответ от ассистента.
+        Gets the response from the assistant.
 
         Parameters
         ----------
         thread_id : str
-            Идентификатор потока.
+            Thread identifier.
 
         Returns
         -------
         str
-            Ответ ассистента.
+            Assistant's response.
         """
         self.logger.info("Run completed, retrieving assistant message")
         messages = self.client.beta.threads.messages.list(thread_id=thread_id)
@@ -227,13 +230,10 @@ class ChatGPTAssistant:
             response = assistant_message.content[0].text.value
             self.logger.info(f"Got response: {response[:50]}...")
 
-            # Удаляем специальные маркеры
             response = re.sub(r"【.*?】", "", response)
 
-            # Преобразуем двойные звездочки в HTML-теги для жирного текста
             response = re.sub(r"\*\*(.*?)\*\*", r"<b>\1</b>", response)
 
-            # Преобразуем Markdown-ссылки в HTML-формат для Telegram
             response = re.sub(
                 r"\[([^]]+)]\(([^)]+)\)",
                 r'<a href="\2">\1</a>',
@@ -242,25 +242,25 @@ class ChatGPTAssistant:
 
             return response
 
-        return "Извините, не удалось получить ответ. Пожалуйста, попробуйте еще раз."
+        return "Sorry, failed to get a response. Please try again."
 
     async def handle_required_action(self, run: Run, thread_id: str, user_id: str) -> Run:
         """
-        Обрабатывает необходимые действия для запуска.
+        Handles the required actions for the run.
 
         Parameters
         ----------
         run : Run
-            Объект запуска.
+            Run object.
         thread_id : str
-            Идентификатор потока.
+            Thread identifier.
         user_id : str
-            Идентификатор пользователя.
+            User identifier.
 
         Returns
         -------
         Run
-            Объект запуска после обработки необходимых действий.
+            Run object after handling required actions.
         """
         self.logger.info("Run requires action (tool calls)")
         tool_calls = run.required_action.submit_tool_outputs.tool_calls
@@ -284,21 +284,21 @@ class ChatGPTAssistant:
         self,
         tool_call: Any,
         user_id: str
-    ) -> Dict[str, str]:
+    ) -> dict[str, str]:
         """
-        Обрабатывает информацию о контакте пользователя.
+        Processes the user's contact information.
 
         Parameters
         ----------
         tool_call : Any
-            Вызов инструмента для получения информации о контакте.
+            Tool call to get contact information.
         user_id : str
-            Идентификатор пользователя.
+            User identifier.
 
         Returns
         -------
         Dict[str, str]
-            Результат обработки информации о контакте.
+            Result of processing contact information.
         """
         self.logger.info(f"Processing get_client_contact_info for user {user_id}")
         contact_info = json.loads(tool_call.function.arguments)
@@ -320,37 +320,35 @@ class ChatGPTAssistant:
     async def send_contact_notification(
         self,
         user_id: str,
-        contact_info: Dict[str, Any]
+        contact_info: dict[str, Any]
     ) -> None:
         """
-        Сохраняет информацию о контакте и отправляет уведомление.
+        Saves contact information and sends a notification.
 
         Parameters
         ----------
         user_id : str
-            Идентификатор пользователя.
+            User identifier.
         contact_info : Dict[str, Any]
-            Информация о контакте.
+            Contact information.
         """
         self.logger.info("Attempting to send email notification")
         try:
-            # Получаем имя пользователя из телеграм-бота
             int_user_id = int(user_id)
             if int_user_id in self.telegram_bot.usernames:
                 username = self.telegram_bot.usernames[int_user_id]
             else:
-                self.logger.info("Пользователь скрыл свое телеграм имя")
+                self.logger.info("User has hidden their Telegram username")
                 username = str(user_id)
             
             dialog_text = await self.telegram_bot.db.get_dialog(int_user_id)
             
-            # Отправляем email через синглтон email_service
             await email_service.send_telegram_dialog_email(
                 user_id=int_user_id,
                 username=username,
                 contact_info=contact_info,
                 dialog_text=dialog_text,
-                db=self.telegram_bot.db if self.telegram_bot is not None and hasattr(self.telegram_bot, 'db') else None
+                db=self.telegram_bot.db if self.telegram_bot is not None and hasattr(self.telegram_bot, "db") else None
             )
             self.logger.info("Email sent successfully")
         except Exception as error:

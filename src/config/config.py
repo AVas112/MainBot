@@ -27,7 +27,7 @@ class ProxyConfig(ABCBaseSettings):
 
     @property
     def proxy_url(self) -> str:
-        """Возвращает URL прокси в формате для httpx."""
+        """Returns the proxy URL in the format for httpx."""
         if self.USE_PROXY is False:
             return ""
         return f"http://{self.USERNAME}:{self.PASSWORD}@{self.HOST}:{self.PORT}"

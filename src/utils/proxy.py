@@ -1,21 +1,22 @@
-import httpx
 import logging
+
+import httpx
 
 from src.config.config import CONFIG
 
 
 def create_proxy_client() -> httpx.Client | None:
     """
-    Создает HTTP клиент с настройками прокси.
-    Если USE_PROXY=False, возвращает None.
+    Creates an HTTP client with proxy settings.
+    If USE_PROXY=False, returns None.
 
     Returns
     -------
     httpx.Client | None
-        Настроенный HTTP клиент с прокси или None.
+        Configured HTTP client with proxy or None.
     """
     if CONFIG.PROXY.USE_PROXY is False:
-        logging.info("Прокси отключен в конфигурации.")
+        logging.info("Proxy is disabled in the configuration.")
         return None
 
     proxy_url = f"socks5://{CONFIG.PROXY.USERNAME}:{CONFIG.PROXY.PASSWORD}@{CONFIG.PROXY.HOST}:{CONFIG.PROXY.PORT}"

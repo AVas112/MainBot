@@ -4,6 +4,7 @@ version = "0.1.0"
 description = ""
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
+package-mode = false
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.12"
@@ -17,6 +18,58 @@ pydantic = "2.6.1"
 pydantic-settings = "2.1.0"
 httpx = {extras = ["socks"], version = "^0.27.0"}
 
+[tool.poetry.group.dev.dependencies]
+ruff = "*"
+autoflake = "*"
+
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.autoflake]
+recursive = true
+in-place = true
+remove-all-unused-imports = true
+ignore-init-module-imports = true
+
+[tool.ruff]
+include = ["src/**/*.py"]
+fix = true
+line-length = 120  # Глобальная настройка для всех линтеров
+
+[tool.ruff.lint]
+extend-select = [
+    "E", # pycodestyle
+    "F", # Pyflakes
+    "UP", # pyupgrade
+    "B", # flake8-bugbear
+    "SIM", # flake8-simplify
+    "Q",
+    "D", # Enable check docstrings
+    "I", # isort
+]
+
+extend-ignore = [
+    'D100', # Docs in a public module
+    'D101', # Docs in public class
+    'D102', # Docs in public method
+    'D103', # Docs in public function
+    'D104', # Docs in a public package - __init__.py
+    'D105', # Docs in magic methods
+    'D106', # Docs in public nested class
+    'D205', # 1 blank line required between summary line and description
+    'D401', # First line should be in imperative mood
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.ruff.lint.isort]
+combine-as-imports = true
+force-wrap-aliases = true
+lines-after-imports = 2
+split-on-trailing-comma = true
+relative-imports-order = "closest-to-furthest"
