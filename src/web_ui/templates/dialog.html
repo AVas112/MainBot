@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+
+{% block title %}Диалог с {{ dialog.username }} | Админ-панель{% endblock %}
+
+{% block extra_css %}
+<style>
+    .message {
+        margin-bottom: 15px;
+        padding: 10px 15px;
+        border-radius: 10px;
+        max-width: 80%;
+    }
+    .message-user {
+        background-color: #e3f2fd;
+        margin-left: auto;
+    }
+    .message-assistant {
+        background-color: #f1f1f1;
+        margin-right: auto;
+    }
+    .message-time {
+        font-size: 0.75rem;
+        color: #6c757d;
+        display: block;
+        margin-top: 5px;
+    }
+    .contact-info {
+        background-color: #e8f5e9;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 20px;
+    }
+    .dialog-container {
+        max-height: 600px;
+        overflow-y: auto;
+        padding: 15px;
+        border: 1px solid #e9ecef;
+        border-radius: 5px;
+        background-color: #f8f9fa;
+    }
+    .scroll-button {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: #0d6efd;
+        color: white;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        cursor: pointer;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        transition: all 0.3s ease;
+    }
+    .scroll-button:hover {
+        background-color: #0b5ed7;
+        transform: scale(1.05);
+    }
+    .scroll-button i {
+        font-size: 1.5rem;
+    }
+    #scrollToTop {
+        display: none;
+    }
+    #scrollToBottom {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Диалог с {{ dialog.username }}</h1>
+            <a href="/admin/" class="btn btn-outline-primary">Вернуться к списку</a>
+        </div>
+        
+        {% if contact_info %}
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="card-title mb-0">Контактная информация</h5>
+            </div>
+            <div class="card-body contact-info">
+                <dl class="row mb-0">
+                    {% for key, value in contact_info.items() %}
+                    <dt class="col-sm-3">
+                        {% if key == "name" %}Имя
+                        {% elif key == "phone" %}Телефон
+                        {% elif key == "email" %}Email
+                        {% elif key == "company" %}Компания
+                        {% elif key == "position" %}Должность
+                        {% elif key == "comment" %}Комментарий
+                        {% else %}{{ key|capitalize }}
+                        {% endif %}
+                    </dt>
+                    <dd class="col-sm-9">{{ value }}</dd>
+                    {% endfor %}
+                </dl>
+            </div>
+        </div>
+        {% endif %}
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">История сообщений</h5>
+            </div>
+            <div class="card-body">
+                {% if dialog.messages %}
+                <div class="dialog-container" id="dialogContainer">
+                    {% for message in dialog.messages %}
+                    <div class="d-flex {% if message.role == 'user' %}justify-content-end{% else %}justify-content-start{% endif %}">
+                        <div class="message {% if message.role == 'user' %}message-user{% else %}message-assistant{% endif %}">
+                            <div class="message-content">{{ message.message|replace('\n', '<br>')|safe }}</div>
+                            <small class="message-time">{{ message.timestamp.strftime('%d.%m.%Y %H:%M:%S') }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    Диалог пуст.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Кнопка прокрутки вверх -->
+<button id="scrollToTop" class="scroll-button" title="Прокрутить к началу диалога">
+    <i class="bi bi-arrow-up"></i>
+</button>
+
+<!-- Кнопка прокрутки вниз -->
+<button id="scrollToBottom" class="scroll-button" title="Прокрутить к концу диалога">
+    <i class="bi bi-arrow-down"></i>
+</button>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const dialogContainer = document.getElementById('dialogContainer');
+        const scrollToTopBtn = document.getElementById('scrollToTop');
+        const scrollToBottomBtn = document.getElementById('scrollToBottom');
+        
+        // Функция для проверки положения прокрутки и отображения соответствующих кнопок
+        function checkScrollPosition() {
+            if (!dialogContainer) return;
+            
+            const scrollTop = dialogContainer.scrollTop;
+            const scrollHeight = dialogContainer.scrollHeight;
+            const clientHeight = dialogContainer.clientHeight;
+            const scrollBottom = scrollHeight - scrollTop - clientHeight;
+            
+            // Показываем кнопку прокрутки вверх, если мы не в начале
+            if (scrollTop > 100) {
+                scrollToTopBtn.style.display = 'flex';
+            } else {
+                scrollToTopBtn.style.display = 'none';
+            }
+            
+            // Показываем кнопку прокрутки вниз, если мы не в конце
+            if (scrollBottom > 100) {
+                scrollToBottomBtn.style.display = 'flex';
+            } else {
+                scrollToBottomBtn.style.display = 'none';
+            }
+        }
+        
+        // Прокрутка к началу диалога
+        scrollToTopBtn.addEventListener('click', function() {
+            dialogContainer.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        });
+        
+        // Прокрутка к концу диалога
+        scrollToBottomBtn.addEventListener('click', function() {
+            dialogContainer.scrollTo({
+                top: dialogContainer.scrollHeight,
+                behavior: 'smooth'
+            });
+        });
+        
+        // Проверяем положение прокрутки при загрузке страницы
+        checkScrollPosition();
+        
+        // Проверяем положение прокрутки при прокрутке
+        dialogContainer.addEventListener('scroll', checkScrollPosition);
+        
+        // Прокручиваем к концу диалога при загрузке страницы
+        dialogContainer.scrollTo({
+            top: dialogContainer.scrollHeight,
+            behavior: 'auto'
+        });
+    });
+</script>
+{% endblock %}

@@ -222,13 +222,13 @@ class EmailService:
             Database object for saving the dialog.
         """
         if not contact_info:
-            self.logger.error("Missing contact information to send email") # Log in English
+            self.logger.error("Missing contact information to send email")
             return
 
-        self.logger.info(f"Starting email sending for user_id: {user_id}, username: {username}") # Log in English
+        self.logger.info(f"Starting email sending for user_id: {user_id}, username: {username}")
         
         if not all([self.smtp_username, self.smtp_password]):
-            self.logger.error("Missing SMTP credentials in environment variables") # Log in English
+            self.logger.error("Missing SMTP credentials in environment variables")
             return
         
         if db is not None:
@@ -239,9 +239,9 @@ class EmailService:
                     contact_info=contact_info,
                     messages=dialog_text
                 )
-                self.logger.info(f"Successful dialog saved to database for user {username}") # Log in English
+                self.logger.info(f"Successful dialog saved to database for user {username}")
             except Exception as e:
-                self.logger.error(f"Error saving dialog to database: {str(e)}") # Log in English
+                self.logger.error(f"Error saving dialog to database: {str(e)}")
 
         msg = MIMEMultipart("alternative")
         msg["From"] = self.smtp_username

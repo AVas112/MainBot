@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Успешные диалоги | Админ-панель{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Успешные диалоги</h1>
+            <a href="/admin/" class="btn btn-outline-primary">Вернуться к списку пользователей</a>
+        </div>
+        
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Список успешных диалогов</h5>
+            </div>
+            <div class="card-body">
+                {% if dialogs %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th>Пользователь</th>
+                                <th>Контактная информация</th>
+                                <th>Дата создания</th>
+                                <th>Действия</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for dialog in dialogs %}
+                            <tr>
+                                <td>{{ dialog.username }}</td>
+                                <td>
+                                    {% if dialog.contact_info %}
+                                    <ul class="list-unstyled mb-0">
+                                        {% for key, value in dialog.contact_info.items() %}
+                                        <li>
+                                            <strong>
+                                                {% if key == "name" %}Имя
+                                                {% elif key == "phone" %}Телефон
+                                                {% elif key == "email" %}Электронная почта
+                                                {% elif key == "company" %}Компания
+                                                {% elif key == "position" %}Должность
+                                                {% else %}{{ key|capitalize }}
+                                                {% endif %}
+                                            </strong>: {{ value }}
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
+                                    {% else %}
+                                    <span class="text-muted">Нет данных</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ dialog.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                                <td>
+                                    <a href="/admin/dialog/{{ dialog.user_id }}" class="btn btn-primary btn-sm">
+                                        Просмотреть диалог
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    Пока нет ни одного успешного диалога в базе данных.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
