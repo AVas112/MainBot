@@ -17,9 +17,8 @@
                     <table class="table table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>Имя пользователя</th>
-                                <th>Последнее сообщение</th>
-                                <th>Сообщений</th>
+                                <th>Имя</th>
+                                <th>Диалог</th>
                                 <th>Действия</th>
                             </tr>
                         </thead>
@@ -27,11 +26,13 @@
                             {% for user in users %}
                             <tr>
                                 <td>{{ user.username }}</td>
-                                <td>{{ user.last_message.strftime('%d.%m.%Y %H:%M:%S') }}</td>
-                                <td>{{ user.message_count }}</td>
+                                <td>
+                                    {{ user.message_count }}
+                                    <div class="small text-muted">{{ user.last_message.strftime('%d.%m.%y') }}</div>
+                                </td>
                                 <td>
                                     <a href="/admin/dialog/{{ user.user_id }}" class="btn btn-primary btn-sm">
-                                        Просмотреть диалог
+                                        Просмотр
                                     </a>
                                 </td>
                             </tr>
@@ -57,8 +58,8 @@
                     <table class="table table-striped table-hover">
                         <thead>
                             <tr>
-                                <th>Имя пользователя</th>
-                                <th>Дата создания</th>
+                                <th>Имя</th>
+                                <th>Дата</th>
                                 <th>Действия</th>
                             </tr>
                         </thead>
@@ -66,10 +67,10 @@
                             {% for user in successful_users %}
                             <tr>
                                 <td>{{ user.username }}</td>
-                                <td>{{ user.created_at.strftime('%d.%m.%Y %H:%M:%S') }}</td>
+                                <td>{{ user.created_at.strftime('%d.%m.%y') }}</td>
                                 <td>
                                     <a href="/admin/dialog/{{ user.user_id }}" class="btn btn-primary btn-sm">
-                                        Просмотреть диалог
+                                        Просмотр
                                     </a>
                                 </td>
                             </tr>
@@ -82,4 +83,21 @@
         {% endif %}
     </div>
 </div>
+
+<style>
+    /* Стили для мобильных устройств */
+    @media (max-width: 767.98px) {
+        .table th, .table td {
+            padding: 0.5rem 0.25rem;
+            font-size: 0.875rem;
+        }
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        .small {
+            font-size: 70%;
+        }
+    }
+</style>
 {% endblock %}
