@@ -28,7 +28,7 @@
                                 <td>{{ user.username }}</td>
                                 <td>
                                     {{ user.message_count }}
-                                    <div class="small text-muted">{{ user.last_message.strftime('%d.%m.%y') }}</div>
+                                    <div class="small text-muted">{{ user.last_message.strftime('%d.%m.%y %H:%M') }}</div>
                                 </td>
                                 <td>
                                     <a href="/admin/dialog/{{ user.user_id }}" class="btn btn-primary btn-sm">
