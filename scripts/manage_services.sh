@@ -1,57 +1,57 @@
 #!/bin/bash
 
-# u0421u043au0440u0438u043fu0442 u0434u043bu044f u0443u043fu0440u0430u0432u043bu0435u043du0438u044f u0441u0435u0440u0432u0438u0441u0430u043cu0438 telegrambot u0438 botadmin
+# Скрипт для управления сервисами telegrambot и botadmin
 
 show_menu() {
-    echo "===== u0423u043fu0440u0430u0432u043bu0435u043du0438u0435 u0441u0435u0440u0432u0438u0441u0430u043cu0438 telegrambot u0438 botadmin ====="
-    echo "1. u0417u0430u043fu0443u0441u0442u0438u0442u044c u0441u0435u0440u0432u0438u0441u044b"
-    echo "2. u041fu0440u043eu0432u0435u0440u0438u0442u044c u0441u0442u0430u0442u0443u0441 u0441u0435u0440u0432u0438u0441u043eu0432"
-    echo "3. u0412u043au043bu044eu0447u0438u0442u044c u0430u0432u0442u043eu0437u0430u043fu0443u0441u043au0430 u0441u0435u0440u0432u0438u0441u043eu0432"
-    echo "4. u041fu0435u0440u0435u0437u0430u043fu0443u0441u0442u0438u0442u044c u0441u0435u0440u0432u0438u0441u044b"
-    echo "5. u041eu0441u0442u0430u043du043eu0432u0438u0442u044c u0441u0435u0440u0432u0438u0441u044b"
-    echo "0. u0412u044bu0445u043eu0434"
-    echo "u0412u0432u0435u0434u0438u0442u0435 u043du043eu043cu0435u0440 u0434u0435u0439u0441u0442u0432u0438u044f: "
+    echo "===== Управление сервисами telegrambot и botadmin ====="
+    echo "1. Запустить сервисы"
+    echo "2. Проверить статус сервисов"
+    echo "3. Включить автозапуск сервисов"
+    echo "4. Перезапустить сервисы"
+    echo "5. Остановить сервисы"
+    echo "0. Выход"
+    echo "Введите номер действия: "
 }
 
 start_services() {
-    echo "u0417u0430u043fu0443u0441u043a u0441u0435u0440u0432u0438u0441u043eu0432..."
+    echo "Запуск сервисов..."
     systemctl start telegrambot.service
     systemctl start botadmin.service
-    echo "u0421u0435u0440u0432u0438u0441u044b u0437u0430u043fu0443u0449u0435u043du044b."
+    echo "Сервисы запущены."
 }
 
 check_status() {
-    echo "u041fu0440u043eu0432u0435u0440u043au0430 u0441u0442u0430u0442u0443u0441u0430 u0441u0435u0440u0432u0438u0441u043eu0432..."
+    echo "Проверка статуса сервисов..."
     echo "
-u0421u0442u0430u0442u0443u0441 telegrambot.service:"
+Статус telegrambot.service:"
     systemctl status telegrambot.service --no-pager
     echo "
-u0421u0442u0430u0442u0443u0441 botadmin.service:"
+Статус botadmin.service:"
     systemctl status botadmin.service --no-pager
 }
 
 enable_autostart() {
-    echo "u0412u043au043bu044eu0447u0435u043du0438u0435 u0430u0432u0442u043eu0437u0430u043fu0443u0441u043au0430 u0441u0435u0440u0432u0438u0441u043eu0432..."
+    echo "Включение автозапуска сервисов..."
     systemctl enable telegrambot.service
     systemctl enable botadmin.service
-    echo "u0410u0432u0442u043eu0437u0430u043fu0443u0441u043au0430 u0432u043au043bu044eu0447u0435u043du0430 u0434u043bu044f u043eu0431u043eu0438u0445 u0441u0435u0440u0432u0438u0441u043eu0432."
+    echo "Автозапуск включен для обоих сервисов."
 }
 
 restart_services() {
-    echo "u041fu0435u0440u0435u0437u0430u043fu0443u0441u043a u0441u0435u0440u0432u0438u0441u043eu0432..."
+    echo "Перезапуск сервисов..."
     systemctl restart telegrambot.service
     systemctl restart botadmin.service
-    echo "u0421u0435u0440u0432u0438u0441u044b u043fu0435u0440u0435u0437u0430u043fu0443u0449u0435u043du044b."
+    echo "Сервисы перезапущены."
 }
 
 stop_services() {
-    echo "u041eu0441u0442u0430u043du043eu0432u043au0430 u0441u0435u0440u0432u0438u0441u043eu0432..."
+    echo "Остановка сервисов..."
     systemctl stop telegrambot.service
     systemctl stop botadmin.service
-    echo "u0421u0435u0440u0432u0438u0441u044b u043eu0441u0442u0430u043du043eu0432u043bu0435u043du044b."
+    echo "Сервисы остановлены."
 }
 
-# u041eu0441u043du043eu0432u043du043eu0439 u0446u0438u043au043b u043fu0440u043eu0433u0440u0430u043cu043cu044b
+# Основной цикл программы
 while true; do
     show_menu
     read -r choice
@@ -67,8 +67,8 @@ while true; do
 "; ;;
         5) stop_services; echo "
 "; ;;
-        0) echo "u0412u044bu0445u043eu0434 u0438u0437 u043fu0440u043eu0433u0440u0430u043cu043cu044b."; exit 0; ;;
-        *) echo "u041du0435u0432u0435u0440u043du044bu0439 u0432u044bu0431u043eu0440. u041fu043eu0436u0430u043bu0443u0439u0441u0442u0430, u0432u044bu0431u0435u0440u0438u0442u0435 u0441u043du043eu0432u0430."; echo "
+        0) echo "Выход из программы."; exit 0; ;;
+        *) echo "Неверный выбор. Пожалуйста, выберите снова."; echo "
 "; ;;
     esac
 done
