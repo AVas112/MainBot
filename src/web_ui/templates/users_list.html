@@ -3,11 +3,11 @@
 {% block title %}Список пользователей | Админ-панель{% endblock %}
 
 {% block content %}
-<div class="row">
+<div id="contentBlock" class="row">
     <div class="col-12">
         <h1 class="mb-4">Список пользователей</h1>
         
-        <div class="card mb-4">
+        <div id="userCard" class="card mb-4">
             <div class="card-header">
                 <h5 class="card-title mb-0">Все пользователи</h5>
             </div>
@@ -49,7 +49,7 @@
         </div>
         
         {% if successful_users %}
-        <div class="card">
+        <div id="successCard" class="card">
             <div class="card-header">
                 <h5 class="card-title mb-0">Успешные диалоги</h5>
             </div>

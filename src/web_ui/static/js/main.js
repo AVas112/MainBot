@@ -111,18 +111,11 @@ function initAutoRefresh() {
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
                     
-                    // Обновляем таблицу пользователей
-                    const newTable = doc.querySelector('.card:first-child .table-responsive');
-                    const currentTable = document.querySelector('.card:first-child .table-responsive');
-                    if (newTable && currentTable) {
-                        currentTable.innerHTML = newTable.innerHTML;
-                    }
-                    
-                    // Обновляем таблицу успешных диалогов, если она есть
-                    const newSuccessTable = doc.querySelector('.card:last-child .table-responsive');
-                    const currentSuccessTable = document.querySelector('.card:last-child .table-responsive');
-                    if (newSuccessTable && currentSuccessTable) {
-                        currentSuccessTable.innerHTML = newSuccessTable.innerHTML;
+                    // Обновляем весь контент страницы целиком
+                    const newContent = doc.querySelector('#contentBlock');
+                    const currentContent = document.querySelector('#contentBlock');
+                    if (newContent && currentContent) {
+                        currentContent.innerHTML = newContent.innerHTML;
                     }
                     
                     // Перепривязываем обработчики событий к новым строкам таблицы
@@ -148,21 +141,8 @@ function initAutoRefresh() {
                 })
                 .catch(error => console.error('Ошибка при обновлении данных:', error));
         } else if (currentPath.includes('/admin/dialog/')) {
-            // Обновление диалога с пользователем
-            fetch(currentPath + '?ajax=true')
-                .then(response => response.text())
-                .then(html => {
-                    const parser = new DOMParser();
-                    const doc = parser.parseFromString(html, 'text/html');
-                    
-                    // Обновляем содержимое диалога
-                    const newDialogContent = doc.querySelector('.card-body');
-                    const currentDialogContent = document.querySelector('.card-body');
-                    if (newDialogContent && currentDialogContent) {
-                        currentDialogContent.innerHTML = newDialogContent.innerHTML;
-                    }
-                })
-                .catch(error => console.error('Ошибка при обновлении диалога:', error));
+            // Автообновление диалога: полная перезагрузка страницы
+            window.location.reload();
         } else if (currentPath.includes('/admin/successful_dialogs')) {
             // Обновление списка успешных диалогов
             fetch('/admin/successful_dialogs?ajax=true')
