@@ -12,7 +12,7 @@ from openai.types.beta.threads import Run
 from src.config.config import CONFIG
 from src.utils.email_service import email_service
 from src.utils.proxy import create_proxy_client
-
+from src.telegram_notifications import notify_admin_about_successful_dialog
 
 if TYPE_CHECKING:
     from src.telegram_bot import TelegramBot
@@ -351,5 +351,12 @@ class ChatGPTAssistant:
                 db=self.telegram_bot.db if self.telegram_bot is not None and hasattr(self.telegram_bot, "db") else None
             )
             self.logger.info("Email sent successfully")
+            await notify_admin_about_successful_dialog(
+                bot=self.telegram_bot.bot,
+                user_id=int_user_id,
+                username=username,
+                contact_info=contact_info
+            )
+            self.logger.info("Admin notified about successful dialog")
         except Exception as error:
-            self.logger.error(f"Error sending email: {str(error)}")
+            self.logger.error(f"Error sending email or telegram notification: {str(error)}")

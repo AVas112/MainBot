@@ -183,3 +183,23 @@ class Database:
         
         html_content += "</body></html>"
         return html_content
+
+    async def is_user_registered(self, user_id: int) -> bool:
+        """
+        Проверяет, существует ли пользователь в таблице dialogs.
+        """
+        result = await self.execute_fetch(
+            "SELECT 1 FROM dialogs WHERE user_id = ? LIMIT 1", (user_id,)
+        )
+        return bool(result)
+
+    async def register_user(self, user_id: int, username: str, first_seen: str) -> None:
+        """
+        Регистрирует нового пользователя в таблице dialogs.
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "INSERT INTO dialogs (user_id, username, message, role, timestamp) VALUES (?, ?, ?, ?, ?)" ,
+                (user_id, username, '', 'system', first_seen)
+            )
+            await db.commit()

@@ -5,6 +5,7 @@ from ._abc import ABCBaseSettings
 
 class TGBotConfig(ABCBaseSettings):
     BOT_TOKEN: str
+    ADMIN_CHAT_ID: int
 
     model_config = SettingsConfigDict(env_prefix="TELEGRAM_")
 
@@ -43,11 +44,18 @@ class SMTPConfig(ABCBaseSettings):
     model_config = SettingsConfigDict(env_prefix="SMTP_")
 
 
+class WebUIConfig(ABCBaseSettings):
+    BASE_URL: str
+
+    model_config = SettingsConfigDict(env_prefix="WEB_UI_")
+
+
 class Config:
     TELEGRAM = TGBotConfig()
     OPENAI = OpenAIConfig()
     PROXY = ProxyConfig()
     SMTP = SMTPConfig()
+    WEB_UI = WebUIConfig()
 
 
 CONFIG = Config()

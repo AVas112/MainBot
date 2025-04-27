@@ -3,7 +3,7 @@ import json
 import logging
 import os
 
-from telegram import Update
+from telegram import Update, Bot
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from src.chatgpt_assistant import ChatGPTAssistant
@@ -11,12 +11,13 @@ from src.config import CONFIG
 from src.daily_report import DailyReport
 from src.database import Database
 from src.utils.email_service import email_service
-
+from src.telegram_notifications import notify_admin_about_new_dialog
 
 class TelegramBot:
     def __init__(self):
         self.token = CONFIG.TELEGRAM.BOT_TOKEN
         self.application = Application.builder().token(self.token).build()
+        self.bot = self.application.bot
         self.logger = logging.getLogger(__name__)
         self.dialogs = {}
         self.threads = self.load_threads()
@@ -130,7 +131,15 @@ class TelegramBot:
 
             if self.dialogs.get(user_id) is None:
                 self.dialogs[user_id] = []
-            
+
+            if not await self.db.is_user_registered(user_id):
+                await self.db.register_user(
+                    user_id=user_id,
+                    username=username,
+                    first_seen=update.message.date.isoformat()
+                )
+                await notify_admin_about_new_dialog(self.application.bot, user_id, username)
+
             await self.db.save_message(
                 user_id=user_id,
                 username=username,
@@ -244,6 +253,5 @@ class TelegramBot:
             user_id=user_id,
             username=username,
             contact_info=contact_info,
-            dialog_text=dialog_text,
-            db=self.db
+            dialog_text=dialog_text
         )
