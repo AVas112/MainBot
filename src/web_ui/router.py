@@ -6,6 +6,7 @@ from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
+# Возвращаем исходные импорты
 from src.web_ui.dependencies import DatabaseDep
 from src.web_ui.schemas import User, Dialog, Message
 
@@ -73,9 +74,19 @@ async def get_users_list(request: Request, db: DatabaseDep):
             "created_at": datetime.fromisoformat(created_at) if created_at else datetime.now()
         })
     
+    # Проверяем, является ли запрос AJAX-запросом
+    is_ajax = request.query_params.get('ajax', '').lower() == 'true'
+    
+    # Если это AJAX-запрос, возвращаем только HTML-содержимое без базового шаблона
+    if is_ajax:
+        return templates.TemplateResponse(
+            "users_list.html", 
+            {"request": request, "users": users, "successful_users": successful_users, "is_ajax": True}
+        )
+    
     return templates.TemplateResponse(
         "users_list.html", 
-        {"request": request, "users": users, "successful_users": successful_users}
+        {"request": request, "users": users, "successful_users": successful_users, "is_ajax": False}
     )
 
 
@@ -147,12 +158,28 @@ async def get_dialog(request: Request, user_id: int, db: DatabaseDep):
         dialog_id, contact_info_json, messages_json, _ = successful_dialog[0]
         contact_info = json.loads(contact_info_json) if contact_info_json else None
     
+    # Проверяем, является ли запрос AJAX-запросом
+    is_ajax = request.query_params.get('ajax', '').lower() == 'true'
+    
+    # Если это AJAX-запрос, возвращаем только HTML-содержимое без базового шаблона
+    if is_ajax:
+        return templates.TemplateResponse(
+            "dialog.html", 
+            {
+                "request": request, 
+                "dialog": dialog, 
+                "contact_info": contact_info,
+                "is_ajax": True
+            }
+        )
+    
     return templates.TemplateResponse(
         "dialog.html", 
         {
             "request": request, 
             "dialog": dialog, 
-            "contact_info": contact_info
+            "contact_info": contact_info,
+            "is_ajax": False
         }
     )
 
@@ -196,7 +223,17 @@ async def get_successful_dialogs(request: Request, db: DatabaseDep):
             "created_at": datetime.fromisoformat(created_at) if created_at else datetime.now()
         })
     
+    # Проверяем, является ли запрос AJAX-запросом
+    is_ajax = request.query_params.get('ajax', '').lower() == 'true'
+    
+    # Если это AJAX-запрос, возвращаем только HTML-содержимое без базового шаблона
+    if is_ajax:
+        return templates.TemplateResponse(
+            "successful_dialogs.html", 
+            {"request": request, "dialogs": dialogs, "is_ajax": True}
+        )
+    
     return templates.TemplateResponse(
         "successful_dialogs.html", 
-        {"request": request, "dialogs": dialogs}
+        {"request": request, "dialogs": dialogs, "is_ajax": False}
     )

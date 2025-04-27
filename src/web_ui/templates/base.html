@@ -28,6 +28,7 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+    {% if not is_ajax %}
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary navbar-fixed mb-4">
         <div class="container">
             <a class="navbar-brand" href="/admin/">Админ-панель</a>
@@ -48,7 +49,9 @@
     </nav>
 
     <div class="container">
+    {% endif %}
         {% block content %}{% endblock %}
+    {% if not is_ajax %}
     </div>
 
     <footer class="footer mt-5 py-3 bg-light">
@@ -62,5 +65,6 @@
     <!-- Custom JS -->
     <script src="{{ url_for('static', path='/js/main.js') }}"></script>
     {% block extra_js %}{% endblock %}
+    {% endif %}
 </body>
 </html>

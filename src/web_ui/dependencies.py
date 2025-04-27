@@ -2,6 +2,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+# Возвращаем исходный импорт
 from src.database import Database
 
 

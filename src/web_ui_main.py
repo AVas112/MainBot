@@ -4,6 +4,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
+# Изменяем импорт для корректной работы при запуске из любой директории
 from src.web_ui.router import router
 
 
