@@ -50,12 +50,36 @@ class WebUIConfig(ABCBaseSettings):
     model_config = SettingsConfigDict(env_prefix="WEB_UI_")
 
 
+class ReminderConfig(ABCBaseSettings):
+    # Время в минутах для отправки первого напоминания
+    FIRST_REMINDER_TIME: int = 1
+    # Время в минутах для отправки второго напоминания
+    SECOND_REMINDER_TIME: int = 2
+    # Промпт для первого напоминания
+    FIRST_REMINDER_PROMPT: str = (
+        "Пользователь не отвечает уже {minutes} минут. Напиши ему короткое сообщение, чтобы вернуть его в диалог. "
+        "Используй контекст предыдущего общения. Используй информацию об услугах из CliningInfo.txt. "
+        "Используй все навыки продаж для этого."
+    )
+    # Промпт для второго напоминания
+    SECOND_REMINDER_PROMPT: str = (
+        "Пользователь не отвечает уже {minutes} минут. Напиши ему более настойчивое сообщение с предложением "
+        "продолжить диалог. Используй контекст предыдущего общения. Предложи ему скидку в 20% на любой "
+        "тип уборки при необходимости."
+    )
+    # Включена ли система напоминаний
+    ENABLED: bool = True
+    
+    model_config = SettingsConfigDict(env_prefix="REMINDER_")
+
+
 class Config:
     TELEGRAM = TGBotConfig()
     OPENAI = OpenAIConfig()
     PROXY = ProxyConfig()
     SMTP = SMTPConfig()
     WEB_UI = WebUIConfig()
+    REMINDER = ReminderConfig()
 
 
 CONFIG = Config()

@@ -10,9 +10,10 @@ from openai import OpenAI, OpenAIError
 from openai.types.beta.threads import Run
 
 from src.config.config import CONFIG
+from src.telegram_notifications import notify_admin_about_successful_dialog
 from src.utils.email_service import email_service
 from src.utils.proxy import create_proxy_client
-from src.telegram_notifications import notify_admin_about_successful_dialog
+
 
 if TYPE_CHECKING:
     from src.telegram_bot import TelegramBot

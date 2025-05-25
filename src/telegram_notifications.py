@@ -1,14 +1,13 @@
+import logging
+
 from telegram import Bot
 from telegram.error import TelegramError
-import logging
 
 from src.config import CONFIG
 
 
 async def notify_admin_about_new_dialog(bot: Bot, user_id: int, username: str) -> None:
-    """
-    Отправляет уведомление в админ-чат о новом диалоге с пользователем.
-    """
+    """Отправляет уведомление в админ-чат о новом диалоге с пользователем."""
     logger = logging.getLogger(__name__)
     url = f"{CONFIG.WEB_UI.BASE_URL}/admin/dialog/{user_id}"
     logger.info(f"Notify admin about new dialog with @{username}")
@@ -29,9 +28,7 @@ async def notify_admin_about_new_dialog(bot: Bot, user_id: int, username: str) -
 
 
 async def notify_admin_about_successful_dialog(bot: Bot, user_id: int, username: str, contact_info: dict) -> None:
-    """
-    Отправляет уведомление в админ-чат о новой заявке на звонок менеджера.
-    """
+    """Отправляет уведомление в админ-чат о новой заявке на звонок менеджера."""
     logger = logging.getLogger(__name__)
     url = f"{CONFIG.WEB_UI.BASE_URL}/admin/dialog/{user_id}"
     name = contact_info.get("name", "")

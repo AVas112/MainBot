@@ -1,14 +1,13 @@
 import json
 from datetime import datetime
-from typing import List
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 # Возвращаем исходные импорты
 from src.web_ui.dependencies import DatabaseDep
-from src.web_ui.schemas import User, Dialog, Message
+from src.web_ui.schemas import Dialog, Message, User
 
 
 # Создание роутера
@@ -75,7 +74,7 @@ async def get_users_list(request: Request, db: DatabaseDep):
         })
     
     # Проверяем, является ли запрос AJAX-запросом
-    is_ajax = request.query_params.get('ajax', '').lower() == 'true'
+    is_ajax = request.query_params.get("ajax", "").lower() == "true"
     
     # Если это AJAX-запрос, возвращаем только HTML-содержимое без базового шаблона
     if is_ajax:
@@ -159,7 +158,7 @@ async def get_dialog(request: Request, user_id: int, db: DatabaseDep):
         contact_info = json.loads(contact_info_json) if contact_info_json else None
     
     # Проверяем, является ли запрос AJAX-запросом
-    is_ajax = request.query_params.get('ajax', '').lower() == 'true'
+    is_ajax = request.query_params.get("ajax", "").lower() == "true"
     
     # Если это AJAX-запрос, возвращаем только HTML-содержимое без базового шаблона
     if is_ajax:
@@ -224,7 +223,7 @@ async def get_successful_dialogs(request: Request, db: DatabaseDep):
         })
     
     # Проверяем, является ли запрос AJAX-запросом
-    is_ajax = request.query_params.get('ajax', '').lower() == 'true'
+    is_ajax = request.query_params.get("ajax", "").lower() == "true"
     
     # Если это AJAX-запрос, возвращаем только HTML-содержимое без базового шаблона
     if is_ajax:

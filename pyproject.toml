@@ -36,7 +36,7 @@ remove-all-unused-imports = true
 ignore-init-module-imports = true
 
 [tool.ruff]
-include = ["src/**/*.py"]
+include = ["**/*.py"]
 fix = true
 line-length = 120  # Глобальная настройка для всех линтеров
 

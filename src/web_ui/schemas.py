@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List, Optional, Dict, Any
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -16,6 +16,7 @@ class Message(BaseModel):
     timestamp : datetime
         Время отправки сообщения
     """
+
     message: str
     role: str
     timestamp: datetime
@@ -33,9 +34,10 @@ class Dialog(BaseModel):
     messages : List[Message]
         Список сообщений диалога
     """
+
     user_id: int
     username: str
-    messages: List[Message]
+    messages: list[Message]
 
 
 class User(BaseModel):
@@ -52,6 +54,7 @@ class User(BaseModel):
     message_count : int
         Количество сообщений
     """
+
     user_id: int
     username: str
     last_message: datetime
@@ -76,9 +79,10 @@ class SuccessfulDialog(BaseModel):
     created_at : datetime
         Время создания записи
     """
+
     id: int
     user_id: int
     username: str
-    contact_info: Dict[str, Any]
-    messages: List[Dict[str, Any]]
+    contact_info: dict[str, Any]
+    messages: list[dict[str, Any]]
     created_at: datetime

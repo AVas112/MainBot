@@ -3,15 +3,17 @@ import json
 import logging
 import os
 
-from telegram import Update, Bot
+from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
 from src.chatgpt_assistant import ChatGPTAssistant
 from src.config import CONFIG
 from src.daily_report import DailyReport
 from src.database import Database
-from src.utils.email_service import email_service
+from src.reminder_service import ReminderService
 from src.telegram_notifications import notify_admin_about_new_dialog
+from src.utils.email_service import email_service
+
 
 class TelegramBot:
     def __init__(self):
@@ -28,12 +30,21 @@ class TelegramBot:
         self.chatgpt_assistant = ChatGPTAssistant(telegram_bot=self)
         
         self.daily_report = None
+        self.reminder_service = None
 
     async def initialize(self):
         """Asynchronous initialization of bot components."""
         await self.db.init_db()
         self.daily_report = DailyReport(telegram_bot=self)
         await self.daily_report.main()
+        
+        # Инициализация сервиса напоминаний
+        self.reminder_service = ReminderService(
+            telegram_bot=self,
+            db=self.db,
+            chatgpt_assistant=self.chatgpt_assistant
+        )
+        await self.reminder_service.start()
 
     def run(self):
         """

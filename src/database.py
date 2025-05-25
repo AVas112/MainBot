@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timedelta
 from string import Template
 
 import aiosqlite
@@ -42,6 +43,16 @@ class Database:
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+            
+            # Создаем таблицу для отслеживания активности пользователей
+            await db.execute("""
+                CREATE TABLE IF NOT EXISTS user_activity (
+                    user_id INTEGER PRIMARY KEY,
+                    last_activity DATETIME NOT NULL,
+                    first_reminder_sent BOOLEAN DEFAULT 0,
+                    second_reminder_sent BOOLEAN DEFAULT 0
+                )
+            """)
 
             await db.commit()
             
@@ -66,6 +77,10 @@ class Database:
                 (user_id, username, message, role)
             )
             await db.commit()
+            
+            # Обновляем время последней активности пользователя, если сообщение от пользователя
+            if role == "user":
+                await self.update_user_activity(user_id=user_id)
             
     async def get_dialog(self, user_id: int) -> list:
         """
@@ -185,21 +200,158 @@ class Database:
         return html_content
 
     async def is_user_registered(self, user_id: int) -> bool:
-        """
-        Проверяет, существует ли пользователь в таблице dialogs.
-        """
+        """Проверяет, существует ли пользователь в таблице dialogs."""
         result = await self.execute_fetch(
             "SELECT 1 FROM dialogs WHERE user_id = ? LIMIT 1", (user_id,)
         )
         return bool(result)
 
     async def register_user(self, user_id: int, username: str, first_seen: str) -> None:
-        """
-        Регистрирует нового пользователя в таблице dialogs.
-        """
+        """Регистрирует нового пользователя в таблице dialogs."""
         async with aiosqlite.connect(self.db_path) as db:
             await db.execute(
                 "INSERT INTO dialogs (user_id, username, message, role, timestamp) VALUES (?, ?, ?, ?, ?)" ,
-                (user_id, username, '', 'system', first_seen)
+                (user_id, username, "", "system", first_seen)
             )
             await db.commit()
+            
+    async def update_user_activity(self, user_id: int) -> None:
+        """
+        Обновляет время последней активности пользователя и сбрасывает статусы отправки напоминаний.
+        
+        Parameters
+        ----------
+        user_id : int
+            ID пользователя
+        """
+        current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        async with aiosqlite.connect(self.db_path) as db:
+            # Проверяем, существует ли запись для пользователя
+            cursor = await db.execute(
+                "SELECT 1 FROM user_activity WHERE user_id = ?",
+                (user_id,)
+            )
+            exists = await cursor.fetchone()
+            
+            if exists:
+                # Обновляем существующую запись
+                await db.execute(
+                    """UPDATE user_activity 
+                       SET last_activity = ?, 
+                           first_reminder_sent = 0, 
+                           second_reminder_sent = 0 
+                       WHERE user_id = ?""",
+                    (current_time, user_id)
+                )
+            else:
+                # Создаем новую запись
+                await db.execute(
+                    "INSERT INTO user_activity (user_id, last_activity) VALUES (?, ?)",
+                    (user_id, current_time)
+                )
+            await db.commit()
+    
+    async def get_users_for_first_reminder(self, minutes: int) -> list:
+        """
+        Получает список пользователей для отправки первого напоминания.
+        
+        Parameters
+        ----------
+        minutes : int
+            Время неактивности в минутах для первого напоминания
+            
+        Returns
+        -------
+        list
+            Список ID пользователей
+        """
+        time_threshold = (datetime.now() - timedelta(minutes=minutes)).strftime("%Y-%m-%d %H:%M:%S")
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                """SELECT user_id FROM user_activity 
+                   WHERE last_activity < ? 
+                   AND first_reminder_sent = 0""",
+                (time_threshold,)
+            )
+            users = await cursor.fetchall()
+            return [user[0] for user in users]
+    
+    async def get_users_for_second_reminder(self, minutes: int) -> list:
+        """
+        Получает список пользователей для отправки второго напоминания.
+        
+        Parameters
+        ----------
+        minutes : int
+            Время неактивности в минутах для второго напоминания
+            
+        Returns
+        -------
+        list
+            Список ID пользователей
+        """
+        time_threshold = (datetime.now() - timedelta(minutes=minutes)).strftime("%Y-%m-%d %H:%M:%S")
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                """SELECT user_id FROM user_activity 
+                   WHERE last_activity < ? 
+                   AND first_reminder_sent = 1 
+                   AND second_reminder_sent = 0""",
+                (time_threshold,)
+            )
+            users = await cursor.fetchall()
+            return [user[0] for user in users]
+    
+    async def mark_first_reminder_sent(self, user_id: int) -> None:
+        """
+        Отмечает, что первое напоминание было отправлено пользователю.
+        
+        Parameters
+        ----------
+        user_id : int
+            ID пользователя
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE user_activity SET first_reminder_sent = 1 WHERE user_id = ?",
+                (user_id,)
+            )
+            await db.commit()
+    
+    async def mark_second_reminder_sent(self, user_id: int) -> None:
+        """
+        Отмечает, что второе напоминание было отправлено пользователю.
+        
+        Parameters
+        ----------
+        user_id : int
+            ID пользователя
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            await db.execute(
+                "UPDATE user_activity SET second_reminder_sent = 1 WHERE user_id = ?",
+                (user_id,)
+            )
+            await db.commit()
+            
+    async def is_successful_dialog(self, user_id: int) -> bool:
+        """
+        Проверяет, был ли диалог с пользователем отмечен как успешный.
+        
+        Parameters
+        ----------
+        user_id : int
+            ID пользователя
+            
+        Returns
+        -------
+        bool
+            True, если диалог был успешным, иначе False
+        """
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(
+                "SELECT 1 FROM successful_dialogs WHERE user_id = ? LIMIT 1",
+                (user_id,)
+            )
+            result = await cursor.fetchone()
+            return bool(result)
