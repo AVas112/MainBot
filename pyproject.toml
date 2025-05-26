@@ -28,6 +28,7 @@ pytest = "^8.0.0"
 pytest-asyncio = "^0.23.0"
 pytest-mock = "^3.12.0"
 pytest-cov = "^4.0.0"
+pylint = "^3.3.7"
 
 [build-system]
 requires = ["poetry-core"]
@@ -38,6 +39,22 @@ recursive = true
 in-place = true
 remove-all-unused-imports = true
 ignore-init-module-imports = true
+
+[tool.pylint]
+disable = [
+    "all",
+]
+enable = [
+    "E1120", # no value for required parameter
+    "E1121", # too many positional arguments
+    "E1123", # unexpected keyword argument
+    "E1124", # redundant keyword argument (both positional and named)
+    "E1125", # missing required keyword-only argument
+    "W0221", # arguments of overridden method differ from parent method
+    "W0222", # signature of overridden method differs from parent method
+]
+jobs = 0
+max-line-length = 120
 
 [tool.ruff]
 include = ["**/*.py"]
