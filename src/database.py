@@ -16,7 +16,9 @@ class Database:
         db_path : str
             Path to the SQLite database file
         """
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        # ИСПРАВЛЕНИЕ: Только вызывать makedirs, если это не база данных в памяти
+        if db_path != ":memory:":
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
         self.db_path = db_path
         
     async def init_db(self):

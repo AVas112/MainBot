@@ -73,6 +73,13 @@ class ReminderConfig(ABCBaseSettings):
     model_config = SettingsConfigDict(env_prefix="REMINDER_")
 
 
+class ReportConfig(ABCBaseSettings):
+    HOUR: int = 8
+    MINUTE: int = 0
+
+    model_config = SettingsConfigDict(env_prefix="REPORT_")
+
+
 class Config:
     TELEGRAM = TGBotConfig()
     OPENAI = OpenAIConfig()
@@ -80,6 +87,7 @@ class Config:
     SMTP = SMTPConfig()
     WEB_UI = WebUIConfig()
     REMINDER = ReminderConfig()
+    REPORT = ReportConfig()
 
 
 CONFIG = Config()
