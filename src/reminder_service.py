@@ -138,7 +138,6 @@ class ReminderService:
             # Проверяем, не успешен ли диалог
             is_successful = await self.db.is_successful_dialog(user_id=user_id)
             if is_successful:
-                self.logger.info(f"Пользователь {user_id} имеет успешный диалог, напоминание не отправляется")
                 continue
                 
             await self._send_reminder(
@@ -158,7 +157,6 @@ class ReminderService:
             # Проверяем, не успешен ли диалог
             is_successful = await self.db.is_successful_dialog(user_id=user_id)
             if is_successful:
-                self.logger.info(f"Пользователь {user_id} имеет успешный диалог, напоминание не отправляется")
                 continue
                 
             await self._send_reminder(
