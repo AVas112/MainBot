@@ -1,3 +1,4 @@
+from pydantic import Field
 from pydantic_settings import SettingsConfigDict
 
 from ._abc import ABCBaseSettings
@@ -52,25 +53,28 @@ class WebUIConfig(ABCBaseSettings):
 
 class ReminderConfig(ABCBaseSettings):
     # Время в минутах для отправки первого напоминания
-    FIRST_REMINDER_TIME: int = 1
+    FIRST_REMINDER_TIME: int = Field(default=1)
     # Время в минутах для отправки второго напоминания
-    SECOND_REMINDER_TIME: int = 2
+    SECOND_REMINDER_TIME: int = Field(default=2)
     # Промпт для первого напоминания
-    FIRST_REMINDER_PROMPT: str = (
-        "Пользователь не отвечает уже {minutes} минут. Напиши ему короткое сообщение, чтобы вернуть его в диалог. "
-        "Используй контекст предыдущего общения. Используй информацию об услугах из CliningInfo.txt. "
-        "Используй все навыки продаж для этого."
+    FIRST_REMINDER_PROMPT: str = Field(
+        default=(
+            "Напиши текст, просто текст без свои комменатриев:"
+            "Привет! Как вы? Решили, как будете двигаться с продажами? Место пока ещё есть, могу забронировать для вас. "
+        )
     )
     # Промпт для второго напоминания
-    SECOND_REMINDER_PROMPT: str = (
-        "Пользователь не отвечает уже {minutes} минут. Напиши ему более настойчивое сообщение с предложением "
-        "продолжить диалог. Используй контекст предыдущего общения. Предложи ему скидку в 20% на любой "
-        "тип уборки при необходимости."
+    SECOND_REMINDER_PROMPT: str = Field(
+        default=(
+            "Пользователь не отвечает уже какое то время. Напиши ему более настойчивое сообщение с предложением "
+            "продолжить диалог. Используй контекст предыдущего общения. Предложи ему скидку в 20% на любой "
+            "тип уборки при необходимости."
+        )
     )
     # Включена ли система напоминаний
-    ENABLED: bool = True
+    ENABLED: bool = Field(default=True)
     
-    model_config = SettingsConfigDict(env_prefix="REMINDER_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
 
 class Config:

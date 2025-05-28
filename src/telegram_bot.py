@@ -99,7 +99,9 @@ class TelegramBot:
         user_id = update.effective_user.id
         self.logger.info(f"User {user_id} started the bot")
         await update.message.reply_text(
-            text="Good day, this is Coliving. To continue the dialogue, please tell us briefly about yourself."
+            text="Добро пожаловать в Школу продаж полного цикла! "
+                 "Я - ваш ИИ‑продавец: задам пару вопросов,подсвечу точки роста. "
+                 "Готовы включить турбо‑режим продаж?"
         )
 
     async def help(self, update: Update, context):
