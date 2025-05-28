@@ -1,14 +1,24 @@
 """Конфигурация и фикстуры для тестов."""
 
+import pytest
+import asyncio
+from src.database import Database
 from unittest.mock import AsyncMock, MagicMock
 
-import pytest
 from openai import OpenAI
 from openai.types.beta.threads import Run
 from openai.types.beta.threads.message import Message
 from openai.types.beta.threads.text_content_block import TextContentBlock
 from openai.types.beta.threads.text import Text
 
+
+@pytest.fixture
+async def db(tmp_path):
+    # Ensure the path is a string, as Database class might expect str
+    db_path = str(tmp_path / "test_dialogs.db")
+    database = Database(db_path=db_path)
+    await database.init_db() # Ensure init_db is called
+    return database
 
 @pytest.fixture
 def mock_config():
@@ -80,4 +90,3 @@ def mock_email_service():
 def mock_notify_admin():
     """Мок функции уведомления администратора."""
     return AsyncMock()
-

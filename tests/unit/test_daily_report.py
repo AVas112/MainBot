@@ -11,7 +11,7 @@ from apscheduler.triggers.cron import CronTrigger
 from src.daily_report import DailyReport
 
 # Используем pytest-asyncio для асинхронных тестов
-pytestmark = pytest.mark.asyncio
+# Декоратор @pytest.mark.asyncio добавляется только к асинхронным тестам
 
 
 @pytest.fixture
@@ -40,6 +40,7 @@ def daily_report_instance(mock_email_service_ctor, mock_db_ctor, mock_db, mock_e
     report_instance.db = mock_db
     return report_instance
 
+@pytest.mark.asyncio
 async def test_get_daily_dialogs(daily_report_instance, mock_db):
     """Тест для метода get_daily_dialogs."""
     mock_dialog_data = [
@@ -63,6 +64,7 @@ async def test_get_daily_dialogs(daily_report_instance, mock_db):
         """
     mock_db.execute_fetch.assert_called_once_with(expected_query, (expected_yesterday_str,))
 
+@pytest.mark.asyncio
 async def test_get_daily_dialogs_empty(daily_report_instance, mock_db):
     """Тест для get_daily_dialogs, когда нет диалогов."""
     mock_db.execute_fetch.return_value = []
@@ -120,7 +122,8 @@ def test_format_user_dialog_internal_method(daily_report_instance):
 
 @patch("src.daily_report.datetime")
 @patch("src.daily_report.email_service") # Патчим email_service в модуле, где он используется DailyReport
-async def test_send_daily_report_success(mock_email_service_patched, mock_datetime, daily_report_instance): # Убираем mock_email_service из фикстур, используем пропатченный
+@pytest.mark.asyncio
+async def test_send_daily_report_success(mock_email_service_patched, mock_datetime, daily_report_instance):
     """Тест успешной отправки ежедневного отчета."""
     mock_now = datetime(2023, 1, 15, 10, 0, 0, tzinfo=ZoneInfo("Europe/Moscow"))
     mock_datetime.now.return_value = mock_now
@@ -130,7 +133,7 @@ async def test_send_daily_report_success(mock_email_service_patched, mock_dateti
     daily_report_instance.get_daily_dialogs.assert_called_once()
     daily_report_instance.format_report.assert_called_once_with([(1, "user1", "msg", "user", "ts")])
     expected_subject = f'Ежедневный отчет по диалогам {mock_now.strftime("%Y-%m-%d")}'
-    mock_email_service_patched.send_email.assert_called_once_with( # Проверяем на пропатченном моке
+    mock_email_service_patched.send_email.assert_called_once_with(
         subject=expected_subject,
         body="<p>HTML Report</p>",
         recipient=None 
@@ -138,7 +141,8 @@ async def test_send_daily_report_success(mock_email_service_patched, mock_dateti
 
 @patch("src.daily_report.datetime")
 @patch("src.daily_report.email_service") # Патчим email_service в модуле
-async def test_send_daily_report_sends_empty_report(mock_email_service_patched, mock_datetime, daily_report_instance): # Убираем mock_email_service из фикстур
+@pytest.mark.asyncio
+async def test_send_daily_report_sends_empty_report(mock_email_service_patched, mock_datetime, daily_report_instance):
     """Тест отправки отчета, когда нет диалогов."""
     mock_now = datetime(2023, 1, 15, 10, 0, 0, tzinfo=ZoneInfo("Europe/Moscow"))
     mock_datetime.now.return_value = mock_now
@@ -149,7 +153,7 @@ async def test_send_daily_report_sends_empty_report(mock_email_service_patched, 
     daily_report_instance.get_daily_dialogs.assert_called_once()
     daily_report_instance.format_report.assert_called_once_with([])
     expected_subject = f'Ежедневный отчет по диалогам {mock_now.strftime("%Y-%m-%d")}'
-    mock_email_service_patched.send_email.assert_called_once_with( # Проверяем на пропатченном моке
+    mock_email_service_patched.send_email.assert_called_once_with(
         subject=expected_subject,
         body=expected_html_body,
         recipient=None
@@ -157,7 +161,8 @@ async def test_send_daily_report_sends_empty_report(mock_email_service_patched, 
 
 @patch("src.daily_report.logger")
 @patch("src.daily_report.email_service") # Патчим email_service в модуле
-async def test_send_daily_report_email_failure(mock_email_service_patched, mock_logger, daily_report_instance): # Убираем mock_email_service из фикстур
+@pytest.mark.asyncio
+async def test_send_daily_report_email_failure(mock_email_service_patched, mock_logger, daily_report_instance):
     """Тест обработки ошибки при отправке email в send_daily_report."""
     daily_report_instance.get_daily_dialogs = AsyncMock(return_value=[(1, "user1", "msg", "user", "ts")])
     daily_report_instance.format_report = MagicMock(return_value="<p>HTML Report</p>")

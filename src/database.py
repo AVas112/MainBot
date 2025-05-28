@@ -157,11 +157,18 @@ class Database:
         list
             Query results
         """
-        async with (
-            aiosqlite.connect(self.db_path) as db,
-            db.execute(query, params or ()) as cursor
-        ):
-            return await cursor.fetchall()
+        async with aiosqlite.connect(self.db_path) as db:
+            cursor = await db.execute(query, params or ())
+            
+            # Проверяем, является ли запрос модифицирующим (INSERT, UPDATE, DELETE)
+            query_upper = query.upper().strip()
+            is_modifying = query_upper.startswith(('INSERT', 'UPDATE', 'DELETE'))
+            
+            if is_modifying:
+                await db.commit()
+                return []  # Для модифицирующих запросов возвращаем пустой список
+            else:
+                return await cursor.fetchall()
 
     def format_dialog_html(self, dialog_lines: list, username: str) -> str:
         """
@@ -274,7 +281,7 @@ class Database:
                 (time_threshold,)
             )
             users = await cursor.fetchall()
-            return [user[0] for user in users]
+            return [user[0] for user in users] if users else []
     
     async def get_users_for_second_reminder(self, minutes: int) -> list:
         """
@@ -312,10 +319,26 @@ class Database:
             ID пользователя
         """
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
-                "UPDATE user_activity SET first_reminder_sent = 1 WHERE user_id = ?",
+            # Проверим, существует ли запись для этого пользователя
+            cursor = await db.execute(
+                "SELECT 1 FROM user_activity WHERE user_id = ?",
                 (user_id,)
             )
+            exists = await cursor.fetchone()
+            
+            if not exists:
+                # Если записи нет, создадим ее
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                await db.execute(
+                    "INSERT INTO user_activity (user_id, last_activity, first_reminder_sent, second_reminder_sent) VALUES (?, ?, 1, 0)",
+                    (user_id, current_time)
+                )
+            else:
+                # Иначе обновим существующую
+                await db.execute(
+                    "UPDATE user_activity SET first_reminder_sent = 1 WHERE user_id = ?",
+                    (user_id,)
+                )
             await db.commit()
     
     async def mark_second_reminder_sent(self, user_id: int) -> None:
@@ -328,10 +351,26 @@ class Database:
             ID пользователя
         """
         async with aiosqlite.connect(self.db_path) as db:
-            await db.execute(
-                "UPDATE user_activity SET second_reminder_sent = 1 WHERE user_id = ?",
+            # Проверим, существует ли запись для этого пользователя
+            cursor = await db.execute(
+                "SELECT 1 FROM user_activity WHERE user_id = ?",
                 (user_id,)
             )
+            exists = await cursor.fetchone()
+            
+            if not exists:
+                # Если записи нет, создадим ее
+                current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                await db.execute(
+                    "INSERT INTO user_activity (user_id, last_activity, first_reminder_sent, second_reminder_sent) VALUES (?, ?, 1, 1)",
+                    (user_id, current_time)
+                )
+            else:
+                # Иначе обновим существующую
+                await db.execute(
+                    "UPDATE user_activity SET second_reminder_sent = 1 WHERE user_id = ?",
+                    (user_id,)
+                )
             await db.commit()
             
     async def is_successful_dialog(self, user_id: int) -> bool:
