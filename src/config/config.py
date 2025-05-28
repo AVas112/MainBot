@@ -7,14 +7,14 @@ class TGBotConfig(ABCBaseSettings):
     BOT_TOKEN: str
     ADMIN_CHAT_ID: int
 
-    model_config = SettingsConfigDict(env_prefix="TELEGRAM_")
+    model_config = SettingsConfigDict(env_prefix="TELEGRAM_", env_file=".env", extra="ignore") # Возвращен env_prefix="TELEGRAM_"
 
 
 class OpenAIConfig(ABCBaseSettings):
     API_KEY: str
     ASSISTANT_ID: str
 
-    model_config = SettingsConfigDict(env_prefix="OPENAI_")
+    model_config = SettingsConfigDict(env_prefix="OPENAI_", env_file=".env", extra="ignore")
 
 
 class ProxyConfig(ABCBaseSettings):
@@ -24,7 +24,7 @@ class ProxyConfig(ABCBaseSettings):
     USERNAME: str = ""
     PASSWORD: str = ""
 
-    model_config = SettingsConfigDict(env_prefix="PROXY_")
+    model_config = SettingsConfigDict(env_prefix="PROXY_", env_file=".env", extra="ignore")
 
     @property
     def proxy_url(self) -> str:
@@ -41,13 +41,13 @@ class SMTPConfig(ABCBaseSettings):
     PASSWORD: str
     NOTIFICATION_EMAIL: str
 
-    model_config = SettingsConfigDict(env_prefix="SMTP_")
+    model_config = SettingsConfigDict(env_prefix="SMTP_", env_file=".env", extra="ignore")
 
 
 class WebUIConfig(ABCBaseSettings):
     BASE_URL: str
 
-    model_config = SettingsConfigDict(env_prefix="WEB_UI_")
+    model_config = SettingsConfigDict(env_prefix="WEB_UI_", env_file=".env", extra="ignore")
 
 
 class ReminderConfig(ABCBaseSettings):
@@ -70,7 +70,7 @@ class ReminderConfig(ABCBaseSettings):
     # Включена ли система напоминаний
     ENABLED: bool = True
     
-    model_config = SettingsConfigDict(env_prefix="REMINDER_")
+    model_config = SettingsConfigDict(env_prefix="REMINDER_", env_file=".env", extra="ignore")
 
 
 class Config:
