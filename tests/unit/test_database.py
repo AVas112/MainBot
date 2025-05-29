@@ -6,9 +6,8 @@ from datetime import datetime, timedelta
 
 from src.database import Database
 
-# The db fixture is now in conftest.py
-FIXED_REGISTRATION_TIMESTAMP_STR = "2023-01-01 10:00:00" # Used by original register_user
-MOCK_NOW_DATETIME = datetime(2023, 1, 3, 12, 0, 0) # Naive datetime for mocking
+FIXED_REGISTRATION_TIMESTAMP_STR = "2023-01-01 10:00:00"
+MOCK_NOW_DATETIME = datetime(2023, 1, 3, 12, 0, 0)
 
 
 @pytest.mark.asyncio
@@ -40,15 +39,12 @@ async def test_save_and_get_dialog(db: Database):
     message_content_assistant = "Hello, user!"
 
     await db.register_user(user_id, username, FIXED_REGISTRATION_TIMESTAMP_STR)
-    # Original register_user inserts an empty system message.
-    # Original save_message (user role) calls update_user_activity.
 
     await db.save_message(user_id, username, message_content_user, 'user')
-    dialog = await db.get_dialog(user_id) # Returns list of strings
+    dialog = await db.get_dialog(user_id)
     
-    assert len(dialog) == 2 # System message ("" by register_user) + user message
-    # Original get_dialog formats system messages as "ChatGPT: {message}"
-    assert dialog[0] == "ChatGPT: " # Empty system message
+    assert len(dialog) == 2
+    assert dialog[0] == "ChatGPT: "
     assert dialog[1] == f"User: {message_content_user}"
 
     await db.save_message(user_id, username, message_content_assistant, 'assistant')
@@ -67,17 +63,14 @@ async def test_save_message_updates_user_activity(db: Database, mocker):
     username = "test_user_activity"
     
     await db.register_user(user_id, username, FIXED_REGISTRATION_TIMESTAMP_STR)
-    # Original register_user does NOT call update_user_activity.
-    # An initial record in user_activity is needed for update_user_activity to successfully UPDATE.
-    # The original update_user_activity has INSERT OR UPDATE logic.
     
     mocked_update_activity = mocker.patch.object(db, 'update_user_activity', autospec=True)
 
-    await db.save_message(user_id, username, "Test message", 'user') # This will call update_user_activity
+    await db.save_message(user_id, username, "Test message", 'user')
     mocked_update_activity.assert_called_once_with(user_id=user_id)
 
     mocked_update_activity.reset_mock()
-    await db.save_message(user_id, username, "Test response", 'assistant') # This will NOT call update_user_activity
+    await db.save_message(user_id, username, "Test response", 'assistant')
     mocked_update_activity.assert_not_called()
 
 
@@ -87,7 +80,6 @@ async def test_save_successful_dialog(db: Database):
     username_for_reg = "successful_user_reg"
     username_for_success = "successful_user_success_entry"
     contact_info_dict = {"type": "email", "value": "test@example.com"}
-    # messages for save_successful_dialog is a list of dicts as it's directly JSON dumped
     messages_as_dicts = [{"role": "user", "message": "Hello"}, {"role": "assistant", "message": "Hi"}] 
     
     await db.register_user(user_id, username_for_reg, FIXED_REGISTRATION_TIMESTAMP_STR)
@@ -125,16 +117,15 @@ async def test_execute_fetch(db: Database):
 async def test_format_dialog_html(db: Database):
     html_empty = db.format_dialog_html([], "test_user_empty")
     assert "<title>Dialog with test_user_empty</title>" in html_empty
-    # Original format_dialog_html does not add a specific paragraph for empty dialogs
 
-    dialog_strings = [ # Original format_dialog_html expects list of strings
+    dialog_strings = [
         "User: Hello",
         "ChatGPT: Hi there!",
     ]
     html_non_empty = db.format_dialog_html(dialog_strings, "test_user_non_empty")
     assert "<title>Dialog with test_user_non_empty</title>" in html_non_empty
-    assert '<div class="message user">User: Hello</div>' in html_non_empty # Adapted assertion
-    assert '<div class="message assistant">ChatGPT: Hi there!</div>' in html_non_empty # Adapted assertion
+    assert '<div class="message user">User: Hello</div>' in html_non_empty
+    assert '<div class="message assistant">ChatGPT: Hi there!</div>' in html_non_empty
     assert html_non_empty.count('<div class="message') == 2
 
 @pytest.mark.asyncio
@@ -148,9 +139,8 @@ async def test_user_registration(db: Database):
 
     dialog_entries = await db.get_dialog(user_id) 
     assert len(dialog_entries) == 1
-    assert dialog_entries[0] == "ChatGPT: " # System message "" by register_user, formatted by get_dialog
+    assert dialog_entries[0] == "ChatGPT: "
 
-    # Original register_user does NOT call update_user_activity.
     activity_rows = await db.execute_fetch("SELECT user_id FROM user_activity WHERE user_id = ?", (user_id,))
     assert len(activity_rows) == 0
 
@@ -158,7 +148,6 @@ async def test_user_registration(db: Database):
 async def test_update_user_activity(db: Database):
     user_id1 = 201
     
-    # Call update_user_activity for a new user (tests INSERT part)
     await db.update_user_activity(user_id1) 
     activity1_rows = await db.execute_fetch("SELECT last_activity, first_reminder_sent, second_reminder_sent FROM user_activity WHERE user_id = ?", (user_id1,))
     assert activity1_rows is not None and len(activity1_rows) == 1
@@ -167,19 +156,13 @@ async def test_update_user_activity(db: Database):
     assert activity1[2] == 0 
     last_activity_time1_str = activity1[0]
 
-    # To ensure time difference for the UPDATE part
-    # We need a slight delay or ensure the timestamp format has enough resolution
-    # For simplicity, we'll assume strptime will show a difference if there is one.
-    # A more robust test might involve mocking datetime.now() for more precise control here.
-    # However, the original update_user_activity calls datetime.now() internally.
 
     await db.update_user_activity(user_id1) 
     activity1_updated_rows = await db.execute_fetch("SELECT last_activity FROM user_activity WHERE user_id = ?", (user_id1,))
     assert activity1_updated_rows is not None and len(activity1_updated_rows) == 1
     activity1_updated_str = activity1_updated_rows[0][0]
     
-    time_format = "%Y-%m-%d %H:%M:%S" # Original format
-    # It's possible they are the same if execution is too fast, so allow greater or equal
+    time_format = "%Y-%m-%d %H:%M:%S"
     assert datetime.strptime(activity1_updated_str, time_format) >= datetime.strptime(last_activity_time1_str, time_format)
 
 
@@ -198,7 +181,6 @@ async def test_get_users_for_reminders(db: Database, mocker):
 
     time_format = "%Y-%m-%d %H:%M:%S"
 
-    # Setup: Register users (does not affect user_activity in original)
     await db.register_user(user_active_recent, "user_active", FIXED_REGISTRATION_TIMESTAMP_STR)
     await db.register_user(user_needs_first_reminder, "user_needs_first", FIXED_REGISTRATION_TIMESTAMP_STR)
     await db.register_user(user_first_reminder_sent, "user_first_sent", FIXED_REGISTRATION_TIMESTAMP_STR)
@@ -206,13 +188,6 @@ async def test_get_users_for_reminders(db: Database, mocker):
     await db.register_user(user_second_reminder_sent, "user_second_sent", FIXED_REGISTRATION_TIMESTAMP_STR)
     await db.register_user(user_with_successful_dialog, "user_success_diag", FIXED_REGISTRATION_TIMESTAMP_STR)
 
-    # Manually set user_activity states.
-    # Using execute_fetch for UPDATE/INSERT. This is not ideal as execute_fetch is for SELECTs and might not commit.
-    # However, per instructions, avoiding execute_commit.
-    # This test's reliability depends on aiosqlite's behavior with execute_fetch for DML.
-    # A more robust test would use `async with aiosqlite.connect(db.db_path) as conn: await conn.execute(...); await conn.commit()`
-    
-    # Active recent
     await db.execute_fetch("INSERT OR REPLACE INTO user_activity (user_id, last_activity, first_reminder_sent, second_reminder_sent) VALUES (?, ?, 0, 0)", 
                            (user_active_recent, (MOCK_NOW_DATETIME - timedelta(hours=1)).strftime(time_format)))
     # Needs first reminder (inactive 2 days)
@@ -233,27 +208,26 @@ async def test_get_users_for_reminders(db: Database, mocker):
     await db.save_successful_dialog(user_with_successful_dialog, "user_s_dialog", {"type":"test"}, ["Test"])
 
 
-    users_for_first = await db.get_users_for_first_reminder(minutes=24 * 60) # 24 hours
+    users_for_first = await db.get_users_for_first_reminder(minutes=24 * 60)
     user_ids_for_first = set(users_for_first)
     
     assert user_needs_first_reminder in user_ids_for_first
-    assert user_with_successful_dialog in user_ids_for_first # Original query doesn't filter by successful dialog
+    assert user_with_successful_dialog in user_ids_for_first
     assert user_active_recent not in user_ids_for_first
     assert user_first_reminder_sent not in user_ids_for_first
 
-    users_for_second = await db.get_users_for_second_reminder(minutes=72 * 60) # 72 hours
+    users_for_second = await db.get_users_for_second_reminder(minutes=72 * 60)
     user_ids_for_second = set(users_for_second)
 
     assert user_needs_second_reminder in user_ids_for_second
-    assert user_first_reminder_sent not in user_ids_for_second # Inactive 50h < 72h
+    assert user_first_reminder_sent not in user_ids_for_second
     assert user_second_reminder_sent not in user_ids_for_second
-    assert user_with_successful_dialog not in user_ids_for_second # Because first_reminder_sent is 0
+    assert user_with_successful_dialog not in user_ids_for_second
 
 @pytest.mark.asyncio
 async def test_mark_reminders_sent(db: Database, mocker): 
     user_id = 401
     await db.register_user(user_id, "reminder_user", FIXED_REGISTRATION_TIMESTAMP_STR)
-    # Manually create user_activity record as register_user doesn't
     await db.execute_fetch("INSERT OR REPLACE INTO user_activity (user_id, last_activity, first_reminder_sent, second_reminder_sent) VALUES (?, ?, ?, ?)",
                            (user_id, MOCK_NOW_DATETIME.strftime("%Y-%m-%d %H:%M:%S"), 0, 0))
 
@@ -274,7 +248,6 @@ async def test_is_successful_dialog(db: Database):
     await db.register_user(user_without_success, "user_no_s", FIXED_REGISTRATION_TIMESTAMP_STR)
 
     contact_details = {"email": "success@example.com"}
-    # save_successful_dialog expects a list of messages (dicts or strings, it just dumps to JSON)
     dialog_history_for_save = [{"role":"user", "message":"This was a great chat."}] 
     await db.save_successful_dialog(user_with_success, "user_s_dialog", contact_details, dialog_history_for_save)
 

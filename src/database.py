@@ -44,7 +44,6 @@ class Database:
                 )
             """)
             
-            # Создаем таблицу для отслеживания активности пользователей
             await db.execute("""
                 CREATE TABLE IF NOT EXISTS user_activity (
                     user_id INTEGER PRIMARY KEY,
@@ -78,7 +77,6 @@ class Database:
             )
             await db.commit()
             
-            # Обновляем время последней активности пользователя, если сообщение от пользователя
             if role == "user":
                 await self.update_user_activity(user_id=user_id)
             
@@ -140,7 +138,7 @@ class Database:
             )
             await db.commit()
             return cursor.lastrowid
-
+ 
     async def execute_fetch(self, query: str, params: tuple = None) -> list:
         """
         Executes an SQL query and returns the results.
@@ -160,13 +158,12 @@ class Database:
         async with aiosqlite.connect(self.db_path) as db:
             cursor = await db.execute(query, params or ())
             
-            # Проверяем, является ли запрос модифицирующим (INSERT, UPDATE, DELETE)
             query_upper = query.upper().strip()
             is_modifying = query_upper.startswith(('INSERT', 'UPDATE', 'DELETE'))
             
             if is_modifying:
                 await db.commit()
-                return []  # Для модифицирующих запросов возвращаем пустой список
+                return []
             else:
                 return await cursor.fetchall()
 
@@ -233,7 +230,6 @@ class Database:
         """
         current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         async with aiosqlite.connect(self.db_path) as db:
-            # Проверяем, существует ли запись для пользователя
             cursor = await db.execute(
                 "SELECT 1 FROM user_activity WHERE user_id = ?",
                 (user_id,)
@@ -241,7 +237,6 @@ class Database:
             exists = await cursor.fetchone()
             
             if exists:
-                # Обновляем существующую запись
                 await db.execute(
                     """UPDATE user_activity 
                        SET last_activity = ?, 
@@ -251,7 +246,6 @@ class Database:
                     (current_time, user_id)
                 )
             else:
-                # Создаем новую запись
                 await db.execute(
                     "INSERT INTO user_activity (user_id, last_activity) VALUES (?, ?)",
                     (user_id, current_time)
@@ -290,7 +284,7 @@ class Database:
         Parameters
         ----------
         minutes : int
-            Время неактивности в минутах для второго напоминания
+        Время неактивности в минутах для второго напоминания
             
         Returns
         -------
@@ -319,7 +313,6 @@ class Database:
             ID пользователя
         """
         async with aiosqlite.connect(self.db_path) as db:
-            # Проверим, существует ли запись для этого пользователя
             cursor = await db.execute(
                 "SELECT 1 FROM user_activity WHERE user_id = ?",
                 (user_id,)
@@ -327,14 +320,12 @@ class Database:
             exists = await cursor.fetchone()
             
             if not exists:
-                # Если записи нет, создадим ее
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 await db.execute(
                     "INSERT INTO user_activity (user_id, last_activity, first_reminder_sent, second_reminder_sent) VALUES (?, ?, 1, 0)",
                     (user_id, current_time)
                 )
             else:
-                # Иначе обновим существующую
                 await db.execute(
                     "UPDATE user_activity SET first_reminder_sent = 1 WHERE user_id = ?",
                     (user_id,)
@@ -351,7 +342,6 @@ class Database:
             ID пользователя
         """
         async with aiosqlite.connect(self.db_path) as db:
-            # Проверим, существует ли запись для этого пользователя
             cursor = await db.execute(
                 "SELECT 1 FROM user_activity WHERE user_id = ?",
                 (user_id,)
@@ -359,14 +349,12 @@ class Database:
             exists = await cursor.fetchone()
             
             if not exists:
-                # Если записи нет, создадим ее
                 current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 await db.execute(
                     "INSERT INTO user_activity (user_id, last_activity, first_reminder_sent, second_reminder_sent) VALUES (?, ?, 1, 1)",
                     (user_id, current_time)
                 )
             else:
-                # Иначе обновим существующую
                 await db.execute(
                     "UPDATE user_activity SET second_reminder_sent = 1 WHERE user_id = ?",
                     (user_id,)

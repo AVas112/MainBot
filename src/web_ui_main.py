@@ -4,7 +4,6 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-# Изменяем импорт для корректной работы при запуске из любой директории
 from src.web_ui.router import router
 
 
@@ -16,21 +15,17 @@ def create_app() -> FastAPI:
     FastAPI
         Экземпляр FastAPI приложения
     """
-    # Создание экземпляра FastAPI
     app = FastAPI(
         title="Telegram Bot Admin Panel",
         description="Административная панель для просмотра диалогов Telegram бота",
         version="1.0.0"
     )
     
-    # Подключение статических файлов
     static_dir = os.path.join(os.path.dirname(__file__), "web_ui", "static")
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
     
-    # Подключение маршрутов
     app.include_router(router)
     
-    # Добавление перенаправления с корневого пути на админ-панель
     @app.get("/")
     async def redirect_to_admin():
         from fastapi.responses import RedirectResponse
@@ -41,13 +36,11 @@ def create_app() -> FastAPI:
 
 def main():
     """Точка входа для запуска веб-интерфейса."""
-    # Создание приложения
     app = create_app()
     
-    # Запуск сервера Uvicorn
     uvicorn.run(
         app,
-        host="0.0.0.0",  # Слушать все интерфейсы, что позволяет подключаться с других устройств
+        host="0.0.0.0",
         port=8000,
         log_level="info"
     )

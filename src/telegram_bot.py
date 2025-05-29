@@ -38,7 +38,7 @@ class TelegramBot:
         self.daily_report = DailyReport(telegram_bot=self)
         await self.daily_report.main()
         
-        # Инициализация сервиса напоминаний
+
         self.reminder_service = ReminderService(
             telegram_bot=self,
             db=self.db,
@@ -145,7 +145,7 @@ class TelegramBot:
             if self.dialogs.get(user_id) is None:
                 self.dialogs[user_id] = []
 
-            if not await self.db.is_user_registered(user_id):
+            if not await self.db.is_user_registered(user_id=user_id):
                 await self.db.register_user(
                     user_id=user_id,
                     username=username,
@@ -260,7 +260,7 @@ class TelegramBot:
         """
         username = f"@{self.usernames.get(user_id, str(user_id))}"
         
-        dialog_text = await self.db.get_dialog(user_id)
+        dialog_text = await self.db.get_dialog(user_id=user_id)
         
         await email_service.send_telegram_dialog_email(
             user_id=user_id,

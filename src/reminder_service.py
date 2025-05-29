@@ -68,7 +68,7 @@ class ReminderService:
         self.db = db
         self.chatgpt_assistant = chatgpt_assistant
         self.is_running = False
-        self.check_interval = 60  # Проверка каждую минуту
+        self.check_interval = 60
         self.task: Optional[asyncio.Task] = None
     
     async def start(self) -> None:
@@ -128,14 +128,12 @@ class ReminderService:
         Получает списки пользователей для первого и второго напоминания
         и отправляет им соответствующие сообщения.
         """
-        # Проверка пользователей для первого напоминания
         first_reminder_time = CONFIG.REMINDER.FIRST_REMINDER_TIME
         users_for_first_reminder = await self.db.get_users_for_first_reminder(
             minutes=first_reminder_time
         )
         
         for user_id in users_for_first_reminder:
-            # Проверяем, не успешен ли диалог
             is_successful = await self.db.is_successful_dialog(user_id=user_id)
             if is_successful:
                 continue
@@ -147,14 +145,12 @@ class ReminderService:
             )
             await self.db.mark_first_reminder_sent(user_id=user_id)
         
-        # Проверка пользователей для второго напоминания
         second_reminder_time = CONFIG.REMINDER.SECOND_REMINDER_TIME
         users_for_second_reminder = await self.db.get_users_for_second_reminder(
             minutes=second_reminder_time
         )
         
         for user_id in users_for_second_reminder:
-            # Проверяем, не успешен ли диалог
             is_successful = await self.db.is_successful_dialog(user_id=user_id)
             if is_successful:
                 continue
@@ -180,13 +176,11 @@ class ReminderService:
             Время неактивности пользователя в минутах
         """
         try:
-            # Получаем thread_id для пользователя
             thread_id = self.telegram_bot.threads.get(str(user_id))
             if thread_id is None:
                 self.logger.warning(f"Не найден thread_id для пользователя {user_id}")
                 return
                 
-            # Формируем промпт для ChatGPT в зависимости от типа напоминания
             if reminder_type == "first":
                 prompt_template = CONFIG.REMINDER.FIRST_REMINDER_PROMPT
             else:
@@ -194,7 +188,6 @@ class ReminderService:
                 
             prompt = prompt_template.format(minutes=inactive_minutes)
             
-            # Получаем ответ от ChatGPT
             self.logger.info(f"Отправка запроса к ChatGPT для напоминания пользователю {user_id}")
             response = await self.chatgpt_assistant.get_response(
                 user_message=prompt,
@@ -202,7 +195,6 @@ class ReminderService:
                 user_id=str(user_id)
             )
             
-            # Отправляем сообщение пользователю
             self.logger.info(f"Отправка напоминания пользователю {user_id}")
             await self.telegram_bot.bot.send_message(
                 chat_id=user_id,
@@ -210,7 +202,6 @@ class ReminderService:
                 parse_mode="HTML"
             )
             
-            # Сохраняем сообщение в базу данных
             username = self.telegram_bot.usernames.get(user_id, str(user_id))
             await self.db.save_message(
                 user_id=user_id,

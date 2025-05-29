@@ -14,10 +14,9 @@ from openai.types.beta.threads.text import Text
 
 @pytest.fixture
 async def db(tmp_path):
-    # Ensure the path is a string, as Database class might expect str
     db_path = str(tmp_path / "test_dialogs.db")
     database = Database(db_path=db_path)
-    await database.init_db() # Ensure init_db is called
+    await database.init_db()
     return database
 
 @pytest.fixture

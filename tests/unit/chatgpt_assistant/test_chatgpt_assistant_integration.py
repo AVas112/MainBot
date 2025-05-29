@@ -272,7 +272,6 @@ class TestChatGPTAssistantIntegration:
         mock_run_completed.id = "run-123"
         mock_run_completed.status = "completed"
         
-        # Настройка ответа ассистента
         mock_text = MagicMock()
         mock_text.value = "Обработка завершена успешно!"
         
@@ -306,9 +305,7 @@ class TestChatGPTAssistantIntegration:
 
         # Assert
         assert response == "Обработка завершена успешно!"
-        # Проверяем, что было несколько вызовов retrieve для отслеживания статуса
         assert mock_openai_instance.beta.threads.runs.retrieve.call_count == 3
-        # Проверяем, что были вызовы sleep для ожидания
         assert mock_sleep.call_count == 2
 
 
@@ -331,7 +328,7 @@ class TestChatGPTAssistantEdgeCases:
 
         mock_tool_call = MagicMock()
         mock_tool_call.id = "tool-call-123"
-        mock_tool_call.function.arguments = '{"name": "John", "phone": "+123' # Некорректный JSON
+        mock_tool_call.function.arguments = '{"name": "John", "phone": "+123'
 
         assistant = ChatGPTAssistant()
 
@@ -355,7 +352,7 @@ class TestChatGPTAssistantEdgeCases:
         
         mock_message = MagicMock()
         mock_message.role = "assistant"
-        mock_message.content = []  # Пустой контент
+        mock_message.content = []
         
         mock_messages = MagicMock()
         mock_messages.data = [mock_message]
@@ -418,7 +415,7 @@ class TestChatGPTAssistantEdgeCases:
         mock_config.OPENAI.ASSISTANT_ID = "test-assistant-id"
         mock_proxy.return_value = None
         
-        long_message = "A" * 10000  # Очень длинное сообщение
+        long_message = "A" * 10000
         
         mock_openai_instance = MagicMock()
         mock_openai.return_value = mock_openai_instance
@@ -460,20 +457,16 @@ class TestChatGPTAssistantEdgeCases:
         mock_email_service.send_telegram_dialog_email = AsyncMock()
         mock_notify_admin.return_value = AsyncMock()
 
-        # Создаем мок бота с атрибутом db
         mock_telegram_bot = MagicMock()
         mock_telegram_bot.usernames = {123456: "test_user"}
         mock_telegram_bot.bot = AsyncMock()
         
-        # Создаем мок для метода get_dialog
         mock_get_dialog = AsyncMock()
         mock_get_dialog.return_value = "Test dialog text"
         
-        # Создаем мок для db
         mock_db = MagicMock()
         mock_db.get_dialog = mock_get_dialog
         
-        # Добавляем атрибут db к боту
         mock_telegram_bot.db = mock_db
 
         assistant = ChatGPTAssistant(telegram_bot=mock_telegram_bot)
@@ -491,5 +484,5 @@ class TestChatGPTAssistantEdgeCases:
             username="test_user",
             contact_info=contact_info,
             dialog_text="Test dialog text",
-            db=mock_db  # db должно быть mock_db
+            db=mock_db
         )

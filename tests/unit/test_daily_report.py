@@ -10,9 +10,6 @@ from apscheduler.triggers.cron import CronTrigger
 
 from src.daily_report import DailyReport
 
-# Используем pytest-asyncio для асинхронных тестов
-# Декоратор @pytest.mark.asyncio добавляется только к асинхронным тестам
-
 
 @pytest.fixture
 def mock_db():
@@ -121,7 +118,7 @@ def test_format_user_dialog_internal_method(daily_report_instance):
     assert "</div><hr>" in formatted_dialog
 
 @patch("src.daily_report.datetime")
-@patch("src.daily_report.email_service") # Патчим email_service в модуле, где он используется DailyReport
+@patch("src.daily_report.email_service")
 @pytest.mark.asyncio
 async def test_send_daily_report_success(mock_email_service_patched, mock_datetime, daily_report_instance):
     """Тест успешной отправки ежедневного отчета."""
@@ -140,7 +137,7 @@ async def test_send_daily_report_success(mock_email_service_patched, mock_dateti
     )
 
 @patch("src.daily_report.datetime")
-@patch("src.daily_report.email_service") # Патчим email_service в модуле
+@patch("src.daily_report.email_service")
 @pytest.mark.asyncio
 async def test_send_daily_report_sends_empty_report(mock_email_service_patched, mock_datetime, daily_report_instance):
     """Тест отправки отчета, когда нет диалогов."""
@@ -160,15 +157,15 @@ async def test_send_daily_report_sends_empty_report(mock_email_service_patched, 
     )
 
 @patch("src.daily_report.logger")
-@patch("src.daily_report.email_service") # Патчим email_service в модуле
+@patch("src.daily_report.email_service")
 @pytest.mark.asyncio
 async def test_send_daily_report_email_failure(mock_email_service_patched, mock_logger, daily_report_instance):
     """Тест обработки ошибки при отправке email в send_daily_report."""
     daily_report_instance.get_daily_dialogs = AsyncMock(return_value=[(1, "user1", "msg", "user", "ts")])
     daily_report_instance.format_report = MagicMock(return_value="<p>HTML Report</p>")
-    mock_email_service_patched.send_email.side_effect = Exception("Email send failed") # Устанавливаем side_effect на пропатченном моке
+    mock_email_service_patched.send_email.side_effect = Exception("Email send failed")
     await daily_report_instance.send_daily_report()
-    assert mock_email_service_patched.send_email.called # Проверяем на пропатченном моке
+    assert mock_email_service_patched.send_email.called
     mock_logger.error.assert_called_once()
     args, _ = mock_logger.error.call_args
     assert "Error sending daily report: Email send failed" in args[0]
@@ -187,7 +184,7 @@ def test_schedule_daily_report_defaults(mock_getenv, mock_cron_trigger, mock_sch
     args, kwargs = mock_scheduler_instance.add_job.call_args
     assert args[0] == daily_report_instance.send_daily_report
     mock_cron_trigger.assert_called_once_with(hour=6, minute=0, timezone="Europe/Moscow")
-    assert args[1] == mock_cron_trigger.return_value # Изменено с kwargs["trigger"] на args[1]
+    assert args[1] == mock_cron_trigger.return_value
     assert kwargs["id"] == "daily_report"
     assert kwargs["replace_existing"] is True
     mock_scheduler_instance.start.assert_called_once()
@@ -208,7 +205,7 @@ def test_schedule_daily_report_custom_time(mock_getenv, mock_cron_trigger, mock_
     args, kwargs = mock_scheduler_instance.add_job.call_args
     assert args[0] == daily_report_instance.send_daily_report
     mock_cron_trigger.assert_called_once_with(hour=custom_hour, minute=custom_minute, timezone="Europe/Moscow")
-    assert args[1] == mock_cron_trigger.return_value # Изменено с kwargs["trigger"] на args[1]
+    assert args[1] == mock_cron_trigger.return_value
     assert kwargs["id"] == "daily_report"
     assert kwargs["replace_existing"] is True
     mock_scheduler_instance.start.assert_not_called()

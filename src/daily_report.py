@@ -70,9 +70,7 @@ class DailyReport:
             
         report = "<h2>Отчет по диалогам за последние 24 часа</h2>"
         
-        # Группировка сообщений по пользователям
-        user_dialogs = {} # Словарь для хранения сообщений каждого пользователя
-        # user_dialogs будет иметь вид: {user_id: {"username": username, "messages": [...]}}
+        user_dialogs = {} 
         
         for dialog_row in dialogs:
             user_id, username, message, role, timestamp_str = dialog_row
@@ -80,12 +78,11 @@ class DailyReport:
             if user_id not in user_dialogs:
                 user_dialogs[user_id] = {"username": username, "messages": []}
             
-            # Убедимся, что username обновляется, если он изменился (маловероятно для одного отчета, но для полноты)
             user_dialogs[user_id]["username"] = username 
             
             if isinstance(timestamp_str, str):
                 timestamp = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-            else: # Если это уже datetime объект (например, из-за предыдущей обработки или мока)
+            else: 
                 timestamp = timestamp_str
                 
             user_dialogs[user_id]["messages"].append({
@@ -94,12 +91,7 @@ class DailyReport:
                 "timestamp": timestamp
             })
             
-        # Форматирование отчета для каждого пользователя
         for user_id, data in user_dialogs.items():
-            # Сортируем сообщения пользователя по времени перед форматированием
-            # Это важно, так как сообщения могли прийти из базы не отсортированными внутри одного user_id,
-            # или если бы get_daily_dialogs не делал ORDER BY timestamp.
-            # Для надежности лучше отсортировать здесь.
             sorted_messages = sorted(data["messages"], key=lambda x: x["timestamp"])
             report += self._format_user_dialog(user_id, data["username"], sorted_messages)
             
