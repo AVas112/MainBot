@@ -103,6 +103,7 @@ class ReminderService:
         self.task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await self.task
+        self.task = None # Set task to None after stopping
         self.logger.info("Сервис напоминаний остановлен")
     
     async def _check_inactive_users_loop(self) -> None:
@@ -140,12 +141,13 @@ class ReminderService:
             if is_successful:
                 continue
                 
-            await self._send_reminder(
+            reminder_sent = await self._send_reminder(
                 user_id=user_id,
                 reminder_type="first",
                 inactive_minutes=first_reminder_time
             )
-            await self.db.mark_first_reminder_sent(user_id=user_id)
+            if reminder_sent: # Only mark if successfully sent
+                await self.db.mark_first_reminder_sent(user_id=user_id)
         
         # Проверка пользователей для второго напоминания
         second_reminder_time = CONFIG.REMINDER.SECOND_REMINDER_TIME
@@ -159,14 +161,15 @@ class ReminderService:
             if is_successful:
                 continue
                 
-            await self._send_reminder(
+            reminder_sent = await self._send_reminder(
                 user_id=user_id,
                 reminder_type="second",
                 inactive_minutes=second_reminder_time
             )
-            await self.db.mark_second_reminder_sent(user_id=user_id)
+            if reminder_sent: # Only mark if successfully sent
+                await self.db.mark_second_reminder_sent(user_id=user_id)
     
-    async def _send_reminder(self, user_id: int, reminder_type: str, inactive_minutes: int) -> None:
+    async def _send_reminder(self, user_id: int, reminder_type: str, inactive_minutes: int) -> bool:
         """
         Отправляет напоминание пользователю.
         
@@ -184,7 +187,7 @@ class ReminderService:
             thread_id = self.telegram_bot.threads.get(str(user_id))
             if thread_id is None:
                 self.logger.warning(f"Не найден thread_id для пользователя {user_id}")
-                return
+                return False # Return False if thread_id is not found
                 
             # Формируем промпт для ChatGPT в зависимости от типа напоминания
             if reminder_type == "first":
@@ -220,6 +223,8 @@ class ReminderService:
             )
             
             self.logger.info(f"Напоминание успешно отправлено пользователю {user_id}")
+            return True # Return True on success
             
         except Exception as e:
             self.logger.error(f"Ошибка при отправке напоминания пользователю {user_id}: {e}")
+            return False # Return False on any exception
